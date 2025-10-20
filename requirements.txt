@@ -8,8 +8,8 @@ requests>=2.31.0          # HTTP requests
 lxml>=4.9.0              # XML/HTML processing
 
 # Name generation
-pronouncing>=0.2.0        # Phoneme analysis
 Faker>=20.0.0            # Name generation inspiration
+# pronouncing>=0.2.0      # Phoneme analysis (optional, has install issues)
 
 # CLI and API
 click>=8.1.0             # CLI interface
