@@ -1,0 +1,29 @@
+# Core dependencies
+jellyfish>=1.0.0          # Phonetic encoding algorithms
+python-Levenshtein>=0.21.0  # Fast string similarity
+beautifulsoup4>=4.12.0    # HTML parsing
+selenium>=4.15.0          # Web scraping for INDECOPI
+webdriver-manager>=4.0.0  # Automatic driver management
+requests>=2.31.0          # HTTP requests
+lxml>=4.9.0              # XML/HTML processing
+
+# Name generation
+pronouncing>=0.2.0        # Phoneme analysis
+Faker>=20.0.0            # Name generation inspiration
+
+# CLI and API
+click>=8.1.0             # CLI interface
+rich>=13.7.0             # Beautiful terminal output
+
+# Data handling
+pandas>=2.0.0            # Data manipulation
+numpy>=1.24.0            # Numerical operations
+
+# Optional API layer
+fastapi>=0.104.0         # Modern API framework
+uvicorn>=0.24.0          # ASGI server
+pydantic>=2.0.0          # Data validation
+
+# Utilities
+python-dotenv>=1.0.0     # Environment variables
+tqdm>=4.66.0             # Progress bars
