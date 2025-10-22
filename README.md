@@ -5,11 +5,33 @@ An intelligent brand name generator that complies with INDECOPI (Peruvian tradem
 ## Features
 
 - **Smart Name Generation**: Creates distinctive, evocative brand names following INDECOPI guidelines
+- **🇵🇪 Spanish/Peruvian Generator NEW!**: Culturally-aware name generation for Spanish speakers in Peru
 - **INDECOPI Registry Integration**: Scrapes and analyzes the INDECOPI trademark database
 - **Phonetic Analysis**: Uses multiple phonetic algorithms (Soundex, Metaphone, NYSIIS)
 - **Spelling Similarity**: Levenshtein distance-based comparison
 - **Registration Probability**: Calculates likelihood of successful trademark registration (0-100%)
 - **CLI Interface**: Easy-to-use command-line tool
+
+### 🆕 Spanish/Peruvian Name Generator (v0.2.0)
+
+Generate brand names that resonate with Spanish-speaking audiences in Peru!
+
+**Why use it?**
+- ✅ Natural Spanish pronunciation
+- ✅ Peruvian cultural references (Inti, Pacha, Andes...)
+- ✅ Spanish phonetic patterns
+- ✅ Avoids awkward sounds for Spanish speakers
+- ✅ Uses diminutives popular in Peru (-ito, -ita)
+
+```python
+from brandy import SpanishBrandNameGenerator
+
+gen = SpanishBrandNameGenerator()
+names = gen.generate(count=10, style='peruvian_cultural')
+# ['Intiito', 'Pachaandes', 'Solito', 'Killaalma', ...]
+```
+
+**[📖 Read full documentation →](SPANISH_GENERATOR.md)**
 
 ## INDECOPI Compliance
 
