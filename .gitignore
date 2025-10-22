@@ -27,7 +27,7 @@ ENV/
 .venv
 
 # IDE
-.vscode/
+# .vscode/ - INCLUDED for user convenience (launch configs, settings)
 .idea/
 *.swp
 *.swo

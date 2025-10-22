@@ -1,0 +1,73 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "▶️ Simple Demo",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/examples/simple_demo.py",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "🎮 Interactive Demo",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/examples/interactive_demo.py",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "📦 Batch Generator",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/examples/batch_generator.py",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "🎨 Generate Names (CLI)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/cli.py",
+            "console": "integratedTerminal",
+            "args": ["generate", "--count", "15", "--style", "evocative"]
+        },
+        {
+            "name": "🔍 Check Name (CLI)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/cli.py",
+            "console": "integratedTerminal",
+            "args": ["check", "TechNova", "--detailed"]
+        },
+        {
+            "name": "⚖️ Compare Names (CLI)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/cli.py",
+            "console": "integratedTerminal",
+            "args": ["compare", "TechNova", "TekNova"]
+        },
+        {
+            "name": "🌐 Start API Server",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/api.py",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "🧪 Run Tests",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pytest",
+            "args": [
+                "tests/",
+                "-v",
+                "--tb=short"
+            ],
+            "console": "integratedTerminal"
+        }
+    ]
+}
