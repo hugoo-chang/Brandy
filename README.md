@@ -2,6 +2,19 @@
 
 An intelligent brand name generator that complies with INDECOPI (Peruvian trademark entity) guidelines. This tool generates distinctive brand names and analyzes their probability of successful trademark registration based on phonetic and spelling similarity with existing registered marks.
 
+## 🌐 Landing Page
+
+**[View Live Landing Page →](https://YOUR-USERNAME.github.io/Brandy/)** (Update after GitHub Pages setup)
+
+A professional Spanish landing page is available at `docs/index.html`:
+- Complete BRIEF BRANDY form
+- Three pricing plans (Básico, Premium, Elite)
+- Carter-inspired design
+- Fully responsive
+- Ready for production
+
+[**Setup GitHub Pages** →](GITHUB_PAGES.md)
+
 ## Features
 
 - **Smart Name Generation**: Creates distinctive, evocative brand names following INDECOPI guidelines
