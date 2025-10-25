@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brandy - Generador de Nombres de Marca para Perú</title>
+    <style>
+        /* ====================================
+           VARIABLES & RESET
+           ==================================== */
+        :root {
+            --primary-color: #2d3436;
+            --secondary-color: #6c5ce7;
+            --accent-color: #fd79a8;
+            --text-dark: #2d3436;
+            --text-light: #636e72;
+            --bg-light: #f8f9fa;
+            --bg-white: #ffffff;
+            --border-color: #e9ecef;
+            --success-color: #00b894;
+            --warning-color: #fdcb6e;
+            --danger-color: #d63031;
+
+            --font-primary: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            --font-heading: 'Georgia', 'Times New Roman', serif;
+
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
+            --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.12);
+            --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.16);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-primary);
+            font-size: 16px;
+            line-height: 1.7;
+            color: var(--text-dark);
+            background-color: var(--bg-white);
+            overflow-x: hidden;
+        }
+
+        /* ====================================
+           TYPOGRAPHY
+           ==================================== */
+        h1, h2, h3, h4, h5, h6 {
+            font-family: var(--font-heading);
+            font-weight: 600;
+            line-height: 1.3;
+            margin-bottom: 1rem;
+            color: var(--text-dark);
+        }
+
+        h1 { font-size: 3.5rem; letter-spacing: -0.02em; }
+        h2 { font-size: 2.5rem; letter-spacing: -0.01em; }
+        h3 { font-size: 1.75rem; }
+        h4 { font-size: 1.35rem; }
+        h5 { font-size: 1.15rem; }
+
+        p {
+            margin-bottom: 1.25rem;
+            color: var(--text-light);
+        }
+
+        /* ====================================
+           HEADER/NAVIGATION
+           ==================================== */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1.5rem 0;
+            box-shadow: var(--shadow-sm);
+            z-index: 1000;
+            transition: var(--transition);
+        }
+
+        .header.scrolled {
+            padding: 1rem 0;
+            box-shadow: var(--shadow-md);
+        }
+
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-family: var(--font-heading);
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .logo-icon {
+            font-size: 2rem;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2.5rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--text-dark);
+            text-decoration: none;
+            font-weight: 500;
+            transition: var(--transition);
+            position: relative;
+        }
+
+        .nav-links a::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--secondary-color);
+            transition: var(--transition);
+        }
+
+        .nav-links a:hover::after {
+            width: 100%;
+        }
+
+        /* ====================================
+           HERO SECTION
+           ==================================== */
+        .hero {
+            margin-top: 80px;
+            padding: 120px 2rem 80px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="grid" width="100" height="100" patternUnits="userSpaceOnUse"><path d="M 100 0 L 0 0 0 100" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="1"/></pattern></defs><rect width="100%" height="100%" fill="url(%23grid)"/></svg>');
+            opacity: 0.3;
+        }
+
+        .hero-content {
+            max-width: 900px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        .hero h1 {
+            color: white;
+            margin-bottom: 1.5rem;
+            font-size: 4rem;
+            animation: fadeInUp 0.8s ease-out;
+        }
+
+        .hero-subtitle {
+            font-size: 1.35rem;
+            color: rgba(255, 255, 255, 0.95);
+            margin-bottom: 2rem;
+            line-height: 1.6;
+            animation: fadeInUp 0.8s ease-out 0.2s backwards;
+        }
+
+        .hero-features {
+            display: flex;
+            justify-content: center;
+            gap: 3rem;
+            margin-top: 3rem;
+            flex-wrap: wrap;
+            animation: fadeInUp 0.8s ease-out 0.4s backwards;
+        }
+
+        .hero-feature {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.1rem;
+        }
+
+        .hero-feature-icon {
+            font-size: 1.5rem;
+        }
+
+        /* ====================================
+           CONTAINER
+           ==================================== */
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        .section {
+            padding: 80px 0;
+        }
+
+        .section-header {
+            text-align: center;
+            max-width: 700px;
+            margin: 0 auto 4rem;
+        }
+
+        .section-subtitle {
+            color: var(--secondary-color);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-size: 0.9rem;
+            margin-bottom: 0.75rem;
+        }
+
+        /* ====================================
+           FORM SECTION
+           ==================================== */
+        .brief-section {
+            background: var(--bg-light);
+        }
+
+        .form-intro {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 12px;
+            box-shadow: var(--shadow-sm);
+            margin-bottom: 3rem;
+            text-align: center;
+        }
+
+        .form-intro h3 {
+            color: var(--secondary-color);
+            margin-bottom: 1rem;
+        }
+
+        .brief-form {
+            background: white;
+            padding: 3rem;
+            border-radius: 12px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .form-group {
+            margin-bottom: 2.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            color: var(--text-dark);
+            margin-bottom: 0.75rem;
+            font-size: 1.05rem;
+            line-height: 1.5;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 1rem 1.25rem;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 1rem;
+            font-family: var(--font-primary);
+            transition: var(--transition);
+            background: var(--bg-white);
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--secondary-color);
+            box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.1);
+        }
+
+        .form-group textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .form-group input[type="file"] {
+            padding: 0.75rem;
+        }
+
+        .checkbox-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 0.75rem;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            width: auto;
+            margin: 0;
+            cursor: pointer;
+        }
+
+        .checkbox-item label {
+            margin: 0;
+            font-weight: 400;
+            cursor: pointer;
+            font-size: 0.95rem;
+        }
+
+        .form-note {
+            font-size: 0.9rem;
+            color: var(--text-light);
+            font-style: italic;
+            margin-top: 0.5rem;
+        }
+
+        /* ====================================
+           PRICING SECTION
+           ==================================== */
+        .pricing-section {
+            background: white;
+        }
+
+        .pricing-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+
+        .pricing-card {
+            background: white;
+            border: 2px solid var(--border-color);
+            border-radius: 16px;
+            padding: 2.5rem;
+            text-align: center;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .pricing-card:hover {
+            transform: translateY(-8px);
+            box-shadow: var(--shadow-lg);
+            border-color: var(--secondary-color);
+        }
+
+        .pricing-card.featured {
+            border-color: var(--secondary-color);
+            border-width: 3px;
+            transform: scale(1.05);
+        }
+
+        .pricing-card.featured::before {
+            content: 'MÁS POPULAR';
+            position: absolute;
+            top: 20px;
+            right: -35px;
+            background: var(--secondary-color);
+            color: white;
+            padding: 0.5rem 3rem;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            transform: rotate(45deg);
+        }
+
+        .plan-name {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-dark);
+            margin-bottom: 1rem;
+        }
+
+        .plan-price {
+            font-size: 3rem;
+            font-weight: 700;
+            color: var(--secondary-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .plan-price span {
+            font-size: 1.25rem;
+            color: var(--text-light);
+            font-weight: 400;
+        }
+
+        .plan-description {
+            color: var(--text-light);
+            margin-bottom: 2rem;
+            font-size: 0.95rem;
+        }
+
+        .plan-features {
+            list-style: none;
+            margin-bottom: 2rem;
+            text-align: left;
+        }
+
+        .plan-features li {
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+
+        .plan-features li:last-child {
+            border-bottom: none;
+        }
+
+        .plan-features li::before {
+            content: '✓';
+            color: var(--success-color);
+            font-weight: 700;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+
+        .plan-features li.disabled {
+            opacity: 0.4;
+        }
+
+        .plan-features li.disabled::before {
+            content: '–';
+            color: var(--text-light);
+        }
+
+        /* ====================================
+           BUTTONS
+           ==================================== */
+        .btn {
+            display: inline-block;
+            padding: 1rem 2.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            transition: var(--transition);
+            text-align: center;
+        }
+
+        .btn-primary {
+            background: var(--secondary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5f4dd8;
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: var(--secondary-color);
+            border: 2px solid var(--secondary-color);
+        }
+
+        .btn-secondary:hover {
+            background: var(--secondary-color);
+            color: white;
+        }
+
+        .btn-large {
+            width: 100%;
+            padding: 1.25rem;
+            font-size: 1.1rem;
+        }
+
+        /* ====================================
+           FOOTER
+           ==================================== */
+        .footer {
+            background: var(--primary-color);
+            color: white;
+            padding: 3rem 0 1.5rem;
+            text-align: center;
+        }
+
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .footer-links a {
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            transition: var(--transition);
+        }
+
+        .footer-links a:hover {
+            color: white;
+        }
+
+        .footer-bottom {
+            padding-top: 2rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.9rem;
+        }
+
+        /* ====================================
+           ANIMATIONS
+           ==================================== */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ====================================
+           RESPONSIVE
+           ==================================== */
+        @media (max-width: 768px) {
+            h1 { font-size: 2.5rem; }
+            h2 { font-size: 2rem; }
+
+            .hero {
+                padding: 80px 1.5rem 60px;
+            }
+
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+
+            .hero-subtitle {
+                font-size: 1.1rem;
+            }
+
+            .hero-features {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .nav-links {
+                display: none;
+            }
+
+            .section {
+                padding: 60px 0;
+            }
+
+            .brief-form {
+                padding: 2rem 1.5rem;
+            }
+
+            .pricing-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .pricing-card.featured {
+                transform: scale(1);
+            }
+
+            .checkbox-group {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* ====================================
+           UTILITIES
+           ==================================== */
+        .text-center { text-align: center; }
+        .mb-1 { margin-bottom: 0.5rem; }
+        .mb-2 { margin-bottom: 1rem; }
+        .mb-3 { margin-bottom: 1.5rem; }
+        .mb-4 { margin-bottom: 2rem; }
+        .mt-4 { margin-top: 2rem; }
+    </style>
+</head>
+<body>
+    <!-- HEADER -->
+    <header class="header" id="header">
+        <nav class="nav-container">
+            <a href="#" class="logo">
+                <span class="logo-icon">🎨</span>
+                <span>Brandy</span>
+            </a>
+            <ul class="nav-links">
+                <li><a href="#hero">Inicio</a></li>
+                <li><a href="#brief">Brief</a></li>
+                <li><a href="#planes">Planes</a></li>
+                <li><a href="#contacto">Contacto</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <!-- HERO SECTION -->
+    <section class="hero" id="hero">
+        <div class="hero-content">
+            <h1>Generador Inteligente de Nombres de Marca</h1>
+            <p class="hero-subtitle">
+                Crea nombres de marca únicos y memorables que cumplen con las normativas de INDECOPI.
+                Diseñado específicamente para el mercado peruano con sensibilidad cultural y fonética española.
+            </p>
+            <div class="hero-features">
+                <div class="hero-feature">
+                    <span class="hero-feature-icon">🇵🇪</span>
+                    <span>Optimizado para Perú</span>
+                </div>
+                <div class="hero-feature">
+                    <span class="hero-feature-icon">✓</span>
+                    <span>Cumple con INDECOPI</span>
+                </div>
+                <div class="hero-feature">
+                    <span class="hero-feature-icon">🎯</span>
+                    <span>Análisis de Similitud</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- BRIEF FORM SECTION -->
+    <section class="brief-section section" id="brief">
+        <div class="container">
+            <div class="section-header">
+                <p class="section-subtitle">Paso 1</p>
+                <h2>Brief de Marca Brandy</h2>
+                <p>Completa este formulario para que podamos entender mejor tu negocio y generar nombres de marca perfectos para ti.</p>
+            </div>
+
+            <div class="form-intro">
+                <h3>¿Por qué necesitamos esta información?</h3>
+                <p>
+                    Cada pregunta nos ayuda a comprender la esencia de tu marca, tu público objetivo,
+                    y los valores que quieres transmitir. Esto nos permite generar nombres que no solo
+                    sean únicos, sino que también resuenen con tu audiencia y reflejen la personalidad de tu negocio.
+                </p>
+            </div>
+
+            <form class="brief-form" id="briefForm">
+                <!-- Pregunta 1 -->
+                <div class="form-group">
+                    <label for="resumen">
+                        1. ¿Resume en 30 palabras en qué consiste tu negocio, producto o servicio?
+                    </label>
+                    <textarea
+                        id="resumen"
+                        name="resumen"
+                        required
+                        placeholder="Describe brevemente tu negocio, producto o servicio en máximo 30 palabras..."
+                        maxlength="300"
+                    ></textarea>
+                    <p class="form-note">Máximo 30 palabras</p>
+                </div>
+
+                <!-- Pregunta 2 -->
+                <div class="form-group">
+                    <label for="origen">
+                        2. ¿Cómo nació o se te ocurrió emprender en este rubro? Cuéntanos en un video
+                    </label>
+                    <input
+                        type="url"
+                        id="origen"
+                        name="origen"
+                        placeholder="https://www.youtube.com/... o enlace de video"
+                    >
+                    <p class="form-note">Opcional: Comparte un enlace a tu video</p>
+                </div>
+
+                <!-- Pregunta 3 -->
+                <div class="form-group">
+                    <label for="publico">
+                        3. ¿Quién es el público objetivo de tu marca?
+                    </label>
+                    <textarea
+                        id="publico"
+                        name="publico"
+                        required
+                        placeholder="Describe: Sexo, edad, características, ocasión de uso o consumo de tu producto/servicio, ubicación geográfica de tus potenciales clientes..."
+                    ></textarea>
+                    <p class="form-note">Incluye: sexo, edad, características, ocasión de uso/consumo, ubicación geográfica</p>
+                </div>
+
+                <!-- Pregunta 4 -->
+                <div class="form-group">
+                    <label for="problema">
+                        4. ¿Qué problema resuelve tu marca que otros no hayan resuelto?
+                    </label>
+                    <textarea
+                        id="problema"
+                        name="problema"
+                        required
+                        placeholder="¿Qué hace único a tu producto o servicio? ¿Qué problema específico resuelves mejor que la competencia?"
+                    ></textarea>
+                </div>
+
+                <!-- Pregunta 5 -->
+                <div class="form-group">
+                    <label for="competidores">
+                        5. ¿Quiénes son tus 3 competidores/referentes principales?
+                    </label>
+                    <input
+                        type="text"
+                        id="competidor1"
+                        name="competidor1"
+                        placeholder="Competidor 1"
+                        required
+                        class="mb-2"
+                    >
+                    <input
+                        type="text"
+                        id="competidor2"
+                        name="competidor2"
+                        placeholder="Competidor 2"
+                        required
+                        class="mb-2"
+                    >
+                    <input
+                        type="text"
+                        id="competidor3"
+                        name="competidor3"
+                        placeholder="Competidor 3"
+                        required
+                    >
+                </div>
+
+                <!-- Pregunta 6 -->
+                <div class="form-group">
+                    <label for="atributos">
+                        6. ¿Qué atributos concretos ofreces a tus clientes cuando usan tu producto/servicio?
+                    </label>
+                    <textarea
+                        id="atributos"
+                        name="atributos"
+                        required
+                        placeholder="Ejemplo: calidad superior, rapidez, precio accesible, atención personalizada, innovación..."
+                    ></textarea>
+                </div>
+
+                <!-- Pregunta 7 -->
+                <div class="form-group">
+                    <label for="slogan">
+                        7. ¿Si tuvieras que poner un eslogan o frase resumen a tu marca, cuál sería en 5 palabras?
+                    </label>
+                    <input
+                        type="text"
+                        id="slogan"
+                        name="slogan"
+                        required
+                        placeholder="Ejemplo: Tecnología al alcance de todos"
+                        maxlength="50"
+                    >
+                    <p class="form-note">Máximo 5 palabras</p>
+                </div>
+
+                <!-- Pregunta 8 -->
+                <div class="form-group">
+                    <label for="palabrasClave">
+                        8. ¿Cuáles son las tres palabras clave que deberían transmitirse con el nombre o logotipo de tu marca?
+                    </label>
+                    <input
+                        type="text"
+                        id="palabra1"
+                        name="palabra1"
+                        placeholder="Palabra clave 1"
+                        required
+                        class="mb-2"
+                    >
+                    <input
+                        type="text"
+                        id="palabra2"
+                        name="palabra2"
+                        placeholder="Palabra clave 2"
+                        required
+                        class="mb-2"
+                    >
+                    <input
+                        type="text"
+                        id="palabra3"
+                        name="palabra3"
+                        placeholder="Palabra clave 3"
+                        required
+                    >
+                </div>
+
+                <!-- Pregunta 9 -->
+                <div class="form-group">
+                    <label>
+                        9. Elige tres rasgos de personalidad que tendría tu marca si fuera una persona:
+                    </label>
+                    <div class="checkbox-group">
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="divertida" name="personalidad" value="divertida">
+                            <label for="divertida">Divertida</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="apasionada" name="personalidad" value="apasionada">
+                            <label for="apasionada">Apasionada</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="sencilla" name="personalidad" value="sencilla">
+                            <label for="sencilla">Sencilla</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="honesta" name="personalidad" value="honesta">
+                            <label for="honesta">Honesta</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="aventurera" name="personalidad" value="aventurera">
+                            <label for="aventurera">Aventurera</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="experta" name="personalidad" value="experta">
+                            <label for="experta">Experta</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="confiable" name="personalidad" value="confiable">
+                            <label for="confiable">Confiable</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="inspiradora" name="personalidad" value="inspiradora">
+                            <label for="inspiradora">Inspiradora</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="libre" name="personalidad" value="libre">
+                            <label for="libre">Libre</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="empatica" name="personalidad" value="empática">
+                            <label for="empatica">Empática</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="original" name="personalidad" value="original">
+                            <label for="original">Original</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="exclusiva" name="personalidad" value="exclusiva">
+                            <label for="exclusiva">Exclusiva</label>
+                        </div>
+                    </div>
+                    <p class="form-note">Selecciona exactamente 3 rasgos</p>
+                </div>
+
+                <!-- Pregunta 10 -->
+                <div class="form-group">
+                    <label for="problematica">
+                        10. ¿Qué problemática resuelve tu marca en este mundo?
+                    </label>
+                    <textarea
+                        id="problematica"
+                        name="problematica"
+                        required
+                        placeholder="Piensa en el impacto más amplio: ¿Cómo contribuyes a mejorar la vida de las personas o el mundo?"
+                    ></textarea>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-large">
+                    Continuar a Planes →
+                </button>
+            </form>
+        </div>
+    </section>
+
+    <!-- PRICING SECTION -->
+    <section class="pricing-section section" id="planes">
+        <div class="container">
+            <div class="section-header">
+                <p class="section-subtitle">Paso 2</p>
+                <h2>Elige tu Plan</h2>
+                <p>Selecciona el plan que mejor se adapte a las necesidades de tu negocio</p>
+            </div>
+
+            <div class="pricing-grid">
+                <!-- PLAN BÁSICO -->
+                <div class="pricing-card">
+                    <h3 class="plan-name">Básico</h3>
+                    <div class="plan-price">
+                        S/ 299
+                        <span>/ una vez</span>
+                    </div>
+                    <p class="plan-description">
+                        Perfecto para emprendedores que están iniciando
+                    </p>
+                    <ul class="plan-features">
+                        <li>50 nombres de marca generados</li>
+                        <li>Análisis de similitud fonética</li>
+                        <li>Verificación básica INDECOPI</li>
+                        <li>Reporte en PDF</li>
+                        <li class="disabled">Análisis de probabilidad de registro</li>
+                        <li class="disabled">Consulta con experto</li>
+                        <li class="disabled">Verificación de dominios</li>
+                        <li class="disabled">Soporte prioritario</li>
+                    </ul>
+                    <button class="btn btn-secondary btn-large">Seleccionar Básico</button>
+                </div>
+
+                <!-- PLAN PREMIUM (DESTACADO) -->
+                <div class="pricing-card featured">
+                    <h3 class="plan-name">Premium</h3>
+                    <div class="plan-price">
+                        S/ 599
+                        <span>/ una vez</span>
+                    </div>
+                    <p class="plan-description">
+                        Ideal para negocios que buscan una marca sólida
+                    </p>
+                    <ul class="plan-features">
+                        <li>200 nombres de marca generados</li>
+                        <li>Análisis de similitud fonética y ortográfica</li>
+                        <li>Verificación completa INDECOPI</li>
+                        <li>Análisis de probabilidad de registro</li>
+                        <li>Reporte detallado en PDF</li>
+                        <li>Verificación de dominios .pe y .com</li>
+                        <li>1 consulta con experto en branding</li>
+                        <li class="disabled">Soporte prioritario 24/7</li>
+                        <li class="disabled">Revisión ilimitada</li>
+                    </ul>
+                    <button class="btn btn-primary btn-large">Seleccionar Premium</button>
+                </div>
+
+                <!-- PLAN ELITE -->
+                <div class="pricing-card">
+                    <h3 class="plan-name">Elite</h3>
+                    <div class="plan-price">
+                        S/ 1,299
+                        <span>/ una vez</span>
+                    </div>
+                    <p class="plan-description">
+                        Solución completa para empresas establecidas
+                    </p>
+                    <ul class="plan-features">
+                        <li>500 nombres de marca generados</li>
+                        <li>Análisis completo multi-algoritmo</li>
+                        <li>Verificación exhaustiva INDECOPI</li>
+                        <li>Análisis de probabilidad avanzado</li>
+                        <li>Reporte ejecutivo completo</li>
+                        <li>Verificación internacional de dominios</li>
+                        <li>3 consultas con experto en branding</li>
+                        <li>Soporte prioritario 24/7</li>
+                        <li>Revisiones ilimitadas por 30 días</li>
+                        <li>Estrategia de posicionamiento de marca</li>
+                        <li>Análisis de competencia</li>
+                    </ul>
+                    <button class="btn btn-secondary btn-large">Seleccionar Elite</button>
+                </div>
+            </div>
+
+            <div class="text-center mt-4">
+                <p class="text-light">
+                    ¿Tienes dudas? <a href="#contacto" style="color: var(--secondary-color); font-weight: 600;">Contáctanos</a>
+                    y te ayudaremos a elegir el plan perfecto para ti.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="footer" id="contacto">
+        <div class="footer-content">
+            <div class="footer-links">
+                <a href="#hero">Inicio</a>
+                <a href="#brief">Brief</a>
+                <a href="#planes">Planes</a>
+                <a href="mailto:contacto@brandy.pe">Contacto</a>
+                <a href="#">Términos y Condiciones</a>
+                <a href="#">Privacidad</a>
+            </div>
+            <div class="footer-bottom">
+                <p>© 2025 Brandy - Generador de Nombres de Marca. Todos los derechos reservados.</p>
+                <p style="margin-top: 0.5rem; font-size: 0.85rem;">
+                    🇵🇪 Diseñado específicamente para el mercado peruano | Cumple con normativas INDECOPI
+                </p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Header scroll effect
+        window.addEventListener('scroll', function() {
+            const header = document.getElementById('header');
+            if (window.scrollY > 50) {
+                header.classList.add('scrolled');
+            } else {
+                header.classList.remove('scrolled');
+            }
+        });
+
+        // Form validation and submission
+        const briefForm = document.getElementById('briefForm');
+
+        briefForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            // Validate personality traits (exactly 3)
+            const personalityCheckboxes = document.querySelectorAll('input[name="personalidad"]:checked');
+            if (personalityCheckboxes.length !== 3) {
+                alert('Por favor, selecciona exactamente 3 rasgos de personalidad para tu marca.');
+                return;
+            }
+
+            // Collect form data
+            const formData = new FormData(briefForm);
+            const data = {};
+
+            // Convert FormData to object
+            for (let [key, value] of formData.entries()) {
+                if (key === 'personalidad') {
+                    if (!data[key]) data[key] = [];
+                    data[key].push(value);
+                } else {
+                    data[key] = value;
+                }
+            }
+
+            // Log data (in production, send to server)
+            console.log('Form Data:', data);
+
+            // Show success message and scroll to pricing
+            alert('¡Gracias! Tu brief ha sido registrado. Ahora elige tu plan.');
+
+            // Scroll to pricing section
+            document.getElementById('planes').scrollIntoView({
+                behavior: 'smooth'
+            });
+
+            // In production, you would send this to your backend:
+            // fetch('/api/submit-brief', {
+            //     method: 'POST',
+            //     headers: { 'Content-Type': 'application/json' },
+            //     body: JSON.stringify(data)
+            // });
+        });
+
+        // Limit personality trait selection to 3
+        const personalityCheckboxes = document.querySelectorAll('input[name="personalidad"]');
+        personalityCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                const checked = document.querySelectorAll('input[name="personalidad"]:checked');
+                if (checked.length > 3) {
+                    this.checked = false;
+                    alert('Solo puedes seleccionar 3 rasgos de personalidad.');
+                }
+            });
+        });
+
+        // Smooth scrolling for navigation links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Pricing plan selection
+        const planButtons = document.querySelectorAll('.pricing-card button');
+        planButtons.forEach((button, index) => {
+            button.addEventListener('click', function() {
+                const planNames = ['Básico', 'Premium', 'Elite'];
+                const planName = planNames[index];
+
+                alert(`Has seleccionado el plan ${planName}. Serás redirigido al proceso de pago.`);
+
+                // In production, redirect to payment page:
+                // window.location.href = `/checkout?plan=${planName.toLowerCase()}`;
+            });
+        });
+    </script>
+</body>
+</html>
