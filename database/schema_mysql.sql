@@ -1,278 +1,421 @@
--- Brandy Database Schema - MySQL Version
--- MySQL 8.0+ relational database for tracking users, events, and form submissions
--- Created: 2025-10-27
+-- Brandy Database Schema V2 - MySQL Version
+-- MySQL 8.0+ relational database for MVP multi-step form
+-- Updated: 2025-10-29
+--
+-- NEW FEATURES:
+-- - Client characterization (legal/business data)
+-- - Naming projects tracking
+-- - Payment processing
+-- - Brief responses (simplified 9 questions)
 
 -- ============================================================================
--- USERS TABLE
+-- CLIENT CHARACTERIZATION TABLE
+-- Stores legal and business information from Step 1
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS users (
+CREATE TABLE IF NOT EXISTS client_characterization (
     id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
-    email VARCHAR(255) UNIQUE,
-    full_name VARCHAR(255),
-    company_name VARCHAR(255),
-    phone VARCHAR(50),
-    country VARCHAR(100),
+
+    -- Legal/Identity Information
+    razon_social VARCHAR(255) NOT NULL,
+    tipo_persona ENUM('natural', 'juridica') NOT NULL,
+    documento VARCHAR(50) NOT NULL,
+    representante_legal VARCHAR(255),
+
+    -- Contact Information
+    email VARCHAR(255) NOT NULL,
+    telefono VARCHAR(50) NOT NULL,
+    nacionalidad VARCHAR(100) DEFAULT 'Peruana',
+
+    -- Address Information
+    direccion TEXT NOT NULL,
+    distrito VARCHAR(100) NOT NULL,
+    provincia VARCHAR(100) NOT NULL,
+    departamento VARCHAR(100) NOT NULL,
+
+    -- Business Information
+    etapa_negocio ENUM('idea', 'operacion', 'expansion') NOT NULL,
+    rubro VARCHAR(255) NOT NULL,
+    lugar_operacion TEXT NOT NULL,
+
+    -- Metadata
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    last_login TIMESTAMP NULL,
-    is_active BOOLEAN DEFAULT TRUE,
     metadata JSON DEFAULT ('{}'),
-    INDEX idx_users_email (email),
-    INDEX idx_users_created_at (created_at)
+
+    INDEX idx_characterization_email (email),
+    INDEX idx_characterization_documento (documento),
+    INDEX idx_characterization_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================================
--- EVENTS TABLE
--- Track all user interactions and system events
+-- NAMING PROJECTS TABLE
+-- Tracks the overall naming and trademark registration project
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS events (
+CREATE TABLE IF NOT EXISTS naming_projects (
     id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
-    user_id CHAR(36),
-    event_type VARCHAR(100) NOT NULL,
-    event_name VARCHAR(255),
+    characterization_id CHAR(36) NOT NULL,
+
+    -- Project Information
+    project_code VARCHAR(50) UNIQUE NOT NULL,
+    package_type VARCHAR(50) DEFAULT 'START',
+    package_price DECIMAL(10, 2) DEFAULT 950.00,
+
+    -- Status Tracking
+    status VARCHAR(50) DEFAULT 'brief_pending' NOT NULL,
+    current_stage VARCHAR(50) DEFAULT 'onboarding',
+
+    -- Timeline
+    brief_completed_at TIMESTAMP NULL,
+    payment_completed_at TIMESTAMP NULL,
+    naming_started_at TIMESTAMP NULL,
+    proposals_sent_at TIMESTAMP NULL,
+    client_selected_at TIMESTAMP NULL,
+    indecopi_submitted_at TIMESTAMP NULL,
+    registered_at TIMESTAMP NULL,
+
+    -- Selected Name
+    selected_name VARCHAR(100),
+    selected_proposal_id CHAR(36),
+
+    -- INDECOPI Information
+    indecopi_expediente VARCHAR(100),
+    indecopi_clase INT,
+    indecopi_certificado VARCHAR(100),
+
+    -- Metadata
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    notes TEXT,
+    metadata JSON DEFAULT ('{}'),
+
+    INDEX idx_projects_characterization_id (characterization_id),
+    INDEX idx_projects_status (status),
+    INDEX idx_projects_project_code (project_code),
+    INDEX idx_projects_created_at (created_at),
+
+    FOREIGN KEY (characterization_id) REFERENCES client_characterization(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================================
+-- BRIEFS TABLE
+-- Stores responses to the brand brief (Step 2)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS briefs (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    project_id CHAR(36) NOT NULL,
+
+    -- Brief Questions
+    tiene_nombre BOOLEAN NOT NULL,
+    producto_servicio TEXT NOT NULL,
+    publico_objetivo TEXT NOT NULL,
+    valores TEXT NOT NULL,
+
+    -- 3 defining words
+    palabra_1 VARCHAR(100) NOT NULL,
+    palabra_2 VARCHAR(100) NOT NULL,
+    palabra_3 VARCHAR(100) NOT NULL,
+
+    idea_nombre VARCHAR(255),
+    tiene_logo BOOLEAN NOT NULL,
+    donde_vende TEXT NOT NULL,
+    idioma_preferencia VARCHAR(50) NOT NULL,
+
+    -- Metadata
+    completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    time_spent_seconds INT,
+    metadata JSON DEFAULT ('{}'),
+
+    INDEX idx_briefs_project_id (project_id),
+    INDEX idx_briefs_completed_at (completed_at),
+
+    FOREIGN KEY (project_id) REFERENCES naming_projects(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================================
+-- PAYMENTS TABLE
+-- Tracks payment transactions
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS payments (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    project_id CHAR(36) NOT NULL,
+
+    -- Payment Information
+    amount DECIMAL(10, 2) NOT NULL,
+    currency VARCHAR(3) DEFAULT 'PEN',
+    payment_method VARCHAR(50),
+
+    -- Payment Status
+    status VARCHAR(50) DEFAULT 'pending' NOT NULL,
+
+    -- Gateway Information
+    gateway_transaction_id VARCHAR(255),
+    gateway_response JSON,
+
+    -- Customer Info
+    payer_email VARCHAR(255),
+    payer_name VARCHAR(255),
+
+    -- Timestamps
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    paid_at TIMESTAMP NULL,
+    refunded_at TIMESTAMP NULL,
+
+    -- Additional Info
     ip_address VARCHAR(45),
     user_agent TEXT,
-    session_id VARCHAR(255),
-    referrer TEXT,
+    notes TEXT,
     metadata JSON DEFAULT ('{}'),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_events_user_id (user_id),
-    INDEX idx_events_event_type (event_type),
-    INDEX idx_events_created_at (created_at),
-    INDEX idx_events_session_id (session_id),
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+
+    INDEX idx_payments_project_id (project_id),
+    INDEX idx_payments_status (status),
+    INDEX idx_payments_created_at (created_at),
+    INDEX idx_payments_gateway_transaction_id (gateway_transaction_id),
+
+    FOREIGN KEY (project_id) REFERENCES naming_projects(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================================
--- FORM SUBMISSIONS TABLE
--- Stores metadata about form submissions
+-- PROJECT PROPOSALS TABLE
+-- Links generated names to specific projects
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS form_submissions (
+CREATE TABLE IF NOT EXISTS project_proposals (
     id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
-    user_id CHAR(36),
-    event_id CHAR(36),
-    form_type VARCHAR(100) DEFAULT 'brief_brandy',
-    status VARCHAR(50) DEFAULT 'completed',
-    completion_percentage INT DEFAULT 100,
-    time_spent_seconds INT,
-    submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    project_id CHAR(36) NOT NULL,
+    generated_name_id CHAR(36),
+
+    -- Proposal Information
+    name VARCHAR(100) NOT NULL,
+    proposal_order INT DEFAULT 1,
+    rationale TEXT,
+
+    -- Status
+    status VARCHAR(50) DEFAULT 'proposed',
+    is_selected BOOLEAN DEFAULT FALSE,
+
+    -- Timestamps
+    sent_to_client_at TIMESTAMP NULL,
+    client_feedback TEXT,
+    client_responded_at TIMESTAMP NULL,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     metadata JSON DEFAULT ('{}'),
-    INDEX idx_form_submissions_user_id (user_id),
-    INDEX idx_form_submissions_event_id (event_id),
-    INDEX idx_form_submissions_form_type (form_type),
-    INDEX idx_form_submissions_submitted_at (submitted_at),
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
-    FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
+
+    INDEX idx_proposals_project_id (project_id),
+    INDEX idx_proposals_status (status),
+    INDEX idx_proposals_is_selected (is_selected),
+
+    FOREIGN KEY (project_id) REFERENCES naming_projects(id) ON DELETE CASCADE,
+    FOREIGN KEY (generated_name_id) REFERENCES generated_names(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================================
--- FORM ANSWERS TABLE
--- Stores individual field answers in normalized format
+-- PROJECT NOTES TABLE
+-- Internal notes and communications log
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS form_answers (
+CREATE TABLE IF NOT EXISTS project_notes (
     id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
-    submission_id CHAR(36) NOT NULL,
-    field_name VARCHAR(100) NOT NULL,
-    field_value TEXT,
-    field_type VARCHAR(50),
-    field_order INT,
+    project_id CHAR(36) NOT NULL,
+
+    note_type VARCHAR(50) NOT NULL,
+    note_text TEXT NOT NULL,
+
+    created_by VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_form_answers_submission_id (submission_id),
-    INDEX idx_form_answers_field_name (field_name),
-    FOREIGN KEY (submission_id) REFERENCES form_submissions(id) ON DELETE CASCADE
+
+    is_visible_to_client BOOLEAN DEFAULT FALSE,
+    metadata JSON DEFAULT ('{}'),
+
+    INDEX idx_notes_project_id (project_id),
+    INDEX idx_notes_created_at (created_at),
+    INDEX idx_notes_note_type (note_type),
+
+    FOREIGN KEY (project_id) REFERENCES naming_projects(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================================
--- GENERATED NAMES TABLE
--- Stores brand names generated for users
--- ============================================================================
-CREATE TABLE IF NOT EXISTS generated_names (
-    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
-    user_id CHAR(36),
-    event_id CHAR(36),
-    submission_id CHAR(36),
-    name VARCHAR(100) NOT NULL,
-    style VARCHAR(50),
-    min_length INT,
-    max_length INT,
-    category VARCHAR(100),
-    probability FLOAT,
-    risk_level VARCHAR(20),
-    scores JSON DEFAULT ('{}'),
-    top_conflicts JSON DEFAULT ('[]'),
-    recommendation TEXT,
-    is_favorite BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_generated_names_user_id (user_id),
-    INDEX idx_generated_names_submission_id (submission_id),
-    INDEX idx_generated_names_name (name),
-    INDEX idx_generated_names_risk_level (risk_level),
-    INDEX idx_generated_names_created_at (created_at),
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
-    FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE SET NULL,
-    FOREIGN KEY (submission_id) REFERENCES form_submissions(id) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ============================================================================
--- TRADEMARK CHECKS TABLE
--- Stores individual trademark check history
--- ============================================================================
-CREATE TABLE IF NOT EXISTS trademark_checks (
-    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
-    user_id CHAR(36),
-    event_id CHAR(36),
-    name VARCHAR(100) NOT NULL,
-    category INT,
-    search_type VARCHAR(50),
-    probability FLOAT,
-    risk_level VARCHAR(20),
-    scores JSON DEFAULT ('{}'),
-    conflicts_found INT DEFAULT 0,
-    conflicts JSON DEFAULT ('[]'),
-    checked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_trademark_checks_user_id (user_id),
-    INDEX idx_trademark_checks_name (name),
-    INDEX idx_trademark_checks_checked_at (checked_at),
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
-    FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ============================================================================
--- SIMILARITY CHECKS TABLE
--- Stores name-to-name comparison results
--- ============================================================================
-CREATE TABLE IF NOT EXISTS similarity_checks (
-    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
-    user_id CHAR(36),
-    event_id CHAR(36),
-    name1 VARCHAR(100) NOT NULL,
-    name2 VARCHAR(100) NOT NULL,
-    phonetic_score FLOAT,
-    spelling_score FLOAT,
-    visual_score FLOAT,
-    overall_score FLOAT,
-    is_conflict BOOLEAN,
-    algorithm_details JSON DEFAULT ('{}'),
-    checked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_similarity_checks_user_id (user_id),
-    INDEX idx_similarity_checks_name1 (name1),
-    INDEX idx_similarity_checks_checked_at (checked_at),
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
-    FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ============================================================================
--- CACHED SEARCHES TABLE
--- Replaces file-based pickle cache with database cache
--- ============================================================================
-CREATE TABLE IF NOT EXISTS cached_searches (
-    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
-    query VARCHAR(100) NOT NULL,
-    search_type VARCHAR(50) NOT NULL,
-    category INT,
-    results JSON NOT NULL,
-    hit_count INT DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    expires_at TIMESTAMP,
-    last_accessed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE INDEX idx_cached_searches_unique (query, search_type, category),
-    INDEX idx_cached_searches_expires_at (expires_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ============================================================================
--- VIEWS
+-- UPDATE EXISTING TABLES
 -- ============================================================================
 
--- View for complete form submissions with answers
-CREATE OR REPLACE VIEW v_form_submissions_complete AS
-SELECT
-    fs.id AS submission_id,
-    fs.user_id,
-    u.email,
-    u.full_name,
-    u.company_name,
-    fs.form_type,
-    fs.status,
-    fs.completion_percentage,
-    fs.time_spent_seconds,
-    fs.submitted_at,
-    JSON_OBJECTAGG(
-        fa.field_name,
-        JSON_OBJECT(
-            'value', fa.field_value,
-            'type', fa.field_type
-        )
-    ) AS answers,
-    fs.metadata
-FROM form_submissions fs
-LEFT JOIN users u ON fs.user_id = u.id
-LEFT JOIN form_answers fa ON fs.id = fa.submission_id
-GROUP BY fs.id, u.email, u.full_name, u.company_name;
-
--- View for user activity summary
-CREATE OR REPLACE VIEW v_user_activity_summary AS
-SELECT
-    u.id AS user_id,
-    u.email,
-    u.full_name,
-    u.created_at AS user_since,
-    COUNT(DISTINCT fs.id) AS total_form_submissions,
-    COUNT(DISTINCT gn.id) AS total_names_generated,
-    COUNT(DISTINCT tc.id) AS total_trademark_checks,
-    COUNT(DISTINCT sc.id) AS total_similarity_checks,
-    MAX(e.created_at) AS last_activity,
-    COUNT(DISTINCT e.id) AS total_events
-FROM users u
-LEFT JOIN form_submissions fs ON u.id = fs.user_id
-LEFT JOIN generated_names gn ON u.id = gn.user_id
-LEFT JOIN trademark_checks tc ON u.id = tc.user_id
-LEFT JOIN similarity_checks sc ON u.id = sc.user_id
-LEFT JOIN events e ON u.id = e.user_id
-GROUP BY u.id;
-
--- View for popular generated names
-CREATE OR REPLACE VIEW v_popular_names AS
-SELECT
-    name,
-    COUNT(*) AS generation_count,
-    AVG(probability) AS avg_probability,
-    COUNT(DISTINCT user_id) AS unique_users,
-    MIN(created_at) AS first_generated,
-    MAX(created_at) AS last_generated
-FROM generated_names
-GROUP BY name
-ORDER BY generation_count DESC;
+-- Add project_id to generated_names (if table exists)
+ALTER TABLE generated_names
+ADD COLUMN project_id CHAR(36) DEFAULT NULL,
+ADD INDEX idx_generated_names_project_id (project_id),
+ADD FOREIGN KEY (project_id) REFERENCES naming_projects(id) ON DELETE SET NULL;
 
 -- ============================================================================
 -- STORED PROCEDURES
 -- ============================================================================
 
--- Procedure to clean expired cache entries
+-- Procedure to generate project code
 DELIMITER //
-CREATE PROCEDURE clean_expired_cache()
+CREATE PROCEDURE generate_project_code(OUT new_code VARCHAR(50))
 BEGIN
-    DELETE FROM cached_searches WHERE expires_at < NOW();
-    SELECT ROW_COUNT() AS deleted_count;
+    DECLARE next_number INT;
+
+    -- Get the count of projects created today
+    SELECT COUNT(*) + 1 INTO next_number
+    FROM naming_projects
+    WHERE DATE(created_at) = CURDATE();
+
+    -- Format: BRA-YYYYMMDD-XXX
+    SET new_code = CONCAT('BRA-', DATE_FORMAT(CURDATE(), '%Y%m%d'), '-', LPAD(next_number, 3, '0'));
 END //
 DELIMITER ;
+
+-- Trigger to auto-generate project code
+DELIMITER //
+CREATE TRIGGER auto_generate_project_code
+BEFORE INSERT ON naming_projects
+FOR EACH ROW
+BEGIN
+    IF NEW.project_code IS NULL OR NEW.project_code = '' THEN
+        CALL generate_project_code(NEW.project_code);
+    END IF;
+END //
+DELIMITER ;
+
+-- ============================================================================
+-- VIEWS
+-- ============================================================================
+
+-- Complete project overview
+CREATE OR REPLACE VIEW v_projects_complete AS
+SELECT
+    p.id AS project_id,
+    p.project_code,
+    p.status,
+    p.current_stage,
+    p.package_type,
+    p.package_price,
+
+    -- Client Information
+    c.razon_social,
+    c.tipo_persona,
+    c.documento,
+    c.email,
+    c.telefono,
+    c.etapa_negocio,
+    c.rubro,
+
+    -- Brief Information
+    b.producto_servicio,
+    b.publico_objetivo,
+    b.valores,
+    b.idioma_preferencia,
+
+    -- Selected Name
+    p.selected_name,
+
+    -- Payment Information
+    pay.status AS payment_status,
+    pay.amount AS payment_amount,
+    pay.paid_at AS payment_date,
+
+    -- Timeline
+    p.created_at AS project_created,
+    p.brief_completed_at,
+    p.payment_completed_at,
+    p.naming_started_at,
+    p.proposals_sent_at,
+    p.registered_at,
+
+    -- INDECOPI
+    p.indecopi_expediente,
+    p.indecopi_certificado
+
+FROM naming_projects p
+LEFT JOIN client_characterization c ON p.characterization_id = c.id
+LEFT JOIN briefs b ON p.id = b.project_id
+LEFT JOIN payments pay ON p.id = pay.project_id AND pay.status = 'completed';
+
+-- Active projects requiring attention
+CREATE OR REPLACE VIEW v_projects_active AS
+SELECT
+    p.project_code,
+    p.status,
+    p.current_stage,
+    c.razon_social,
+    c.email,
+    c.telefono,
+    p.created_at,
+    DATEDIFF(NOW(), p.created_at) AS days_since_creation,
+    CASE
+        WHEN p.status = 'brief_pending' THEN 'Waiting for brief completion'
+        WHEN p.status = 'payment_pending' THEN 'Waiting for payment'
+        WHEN p.status = 'naming_in_progress' THEN 'Creating name proposals'
+        WHEN p.status = 'proposals_sent' THEN 'Waiting for client selection'
+        WHEN p.status = 'indecopi_submitted' THEN 'INDECOPI review in progress'
+        ELSE 'Check project status'
+    END AS action_required
+FROM naming_projects p
+JOIN client_characterization c ON p.characterization_id = c.id
+WHERE p.status NOT IN ('registered', 'cancelled', 'rejected')
+ORDER BY p.created_at DESC;
+
+-- Payment summary
+CREATE OR REPLACE VIEW v_payment_summary AS
+SELECT
+    DATE(created_at) AS payment_date,
+    COUNT(*) AS total_payments,
+    SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed_payments,
+    SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) AS pending_payments,
+    SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) AS failed_payments,
+    SUM(CASE WHEN status = 'completed' THEN amount ELSE 0 END) AS revenue,
+    AVG(CASE WHEN status = 'completed' THEN amount END) AS avg_transaction
+FROM payments
+GROUP BY DATE(created_at)
+ORDER BY payment_date DESC;
+
+-- Client acquisition funnel
+CREATE OR REPLACE VIEW v_acquisition_funnel AS
+SELECT
+    COUNT(DISTINCT c.id) AS total_characterizations,
+    COUNT(DISTINCT CASE WHEN b.id IS NOT NULL THEN c.id END) AS completed_briefs,
+    COUNT(DISTINCT CASE WHEN pay.status = 'completed' THEN c.id END) AS paid_clients,
+    COUNT(DISTINCT CASE WHEN p.status IN ('registered') THEN c.id END) AS registered_clients,
+
+    ROUND(
+        100.0 * COUNT(DISTINCT CASE WHEN b.id IS NOT NULL THEN c.id END) /
+        NULLIF(COUNT(DISTINCT c.id), 0), 2
+    ) AS brief_completion_rate,
+
+    ROUND(
+        100.0 * COUNT(DISTINCT CASE WHEN pay.status = 'completed' THEN c.id END) /
+        NULLIF(COUNT(DISTINCT CASE WHEN b.id IS NOT NULL THEN c.id END), 0), 2
+    ) AS payment_conversion_rate,
+
+    ROUND(
+        100.0 * COUNT(DISTINCT CASE WHEN p.status = 'registered' THEN c.id END) /
+        NULLIF(COUNT(DISTINCT CASE WHEN pay.status = 'completed' THEN c.id END), 0), 2
+    ) AS registration_success_rate
+
+FROM client_characterization c
+LEFT JOIN naming_projects p ON c.id = p.characterization_id
+LEFT JOIN briefs b ON p.id = b.project_id
+LEFT JOIN payments pay ON p.id = pay.project_id;
 
 -- ============================================================================
 -- SAMPLE DATA (Optional - for testing)
 -- ============================================================================
 
--- Insert a sample user
-INSERT INTO users (id, email, full_name, company_name, country)
-VALUES (UUID(), 'test@example.com', 'Test User', 'Test Company', 'Peru');
-
--- Insert a sample event
-INSERT INTO events (id, event_type, event_name, ip_address, metadata)
-VALUES (UUID(), 'form_submission', 'Brief Brandy Form Submitted', '127.0.0.1', '{"source": "landing_page"}');
+-- Sample characterization
+INSERT INTO client_characterization (
+    id, razon_social, tipo_persona, documento, email, telefono, nacionalidad,
+    direccion, distrito, provincia, departamento,
+    etapa_negocio, rubro, lugar_operacion
+) VALUES (
+    UUID(), 'Test Company SAC', 'juridica', '20123456789', 'test@example.com', '+51987654321', 'Peruana',
+    'Av. Principal 123', 'Miraflores', 'Lima', 'Lima',
+    'operacion', 'Tecnología', 'Lima, Perú'
+);
 
 -- ============================================================================
--- COMMENTS (MySQL doesn't support COMMENT ON, but we can add column comments)
+-- TABLE COMMENTS (MySQL 8.0+)
 -- ============================================================================
 
--- To add table comments:
--- ALTER TABLE users COMMENT 'Stores user account information';
--- ALTER TABLE events COMMENT 'Tracks all user interactions and system events';
--- etc.
+ALTER TABLE client_characterization COMMENT 'Stores legal and business information from Step 1 of the form';
+ALTER TABLE naming_projects COMMENT 'Tracks overall naming and trademark registration projects';
+ALTER TABLE briefs COMMENT 'Stores brand brief responses from Step 2';
+ALTER TABLE payments COMMENT 'Tracks payment transactions and status';
+ALTER TABLE project_proposals COMMENT 'Links generated name proposals to projects';
+ALTER TABLE project_notes COMMENT 'Internal notes and communication log for projects';

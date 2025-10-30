@@ -1,183 +1,246 @@
--- Brandy Database Schema
--- PostgreSQL relational database for tracking users, events, and form submissions
--- Created: 2025-10-27
+-- Brandy Database Schema V2
+-- PostgreSQL relational database for MVP multi-step form
+-- Updated: 2025-10-29
+--
+-- NEW FEATURES:
+-- - Client characterization (legal/business data)
+-- - Naming projects tracking
+-- - Payment processing
+-- - Brief responses (simplified 9 questions)
 
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- ============================================================================
--- USERS TABLE
+-- CLIENT CHARACTERIZATION TABLE
+-- Stores legal and business information from Step 1
 -- ============================================================================
-CREATE TABLE users (
+CREATE TABLE client_characterization (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    email VARCHAR(255) UNIQUE,
-    full_name VARCHAR(255),
-    company_name VARCHAR(255),
-    phone VARCHAR(50),
-    country VARCHAR(100),
+
+    -- Legal/Identity Information
+    razon_social VARCHAR(255) NOT NULL,
+    tipo_persona VARCHAR(20) NOT NULL CHECK (tipo_persona IN ('natural', 'juridica')),
+    documento VARCHAR(50) NOT NULL, -- DNI or RUC
+    representante_legal VARCHAR(255), -- Only for 'juridica'
+
+    -- Contact Information
+    email VARCHAR(255) NOT NULL,
+    telefono VARCHAR(50) NOT NULL,
+    nacionalidad VARCHAR(100) DEFAULT 'Peruana',
+
+    -- Address Information
+    direccion TEXT NOT NULL,
+    distrito VARCHAR(100) NOT NULL,
+    provincia VARCHAR(100) NOT NULL,
+    departamento VARCHAR(100) NOT NULL,
+
+    -- Business Information
+    etapa_negocio VARCHAR(20) NOT NULL CHECK (etapa_negocio IN ('idea', 'operacion', 'expansion')),
+    rubro VARCHAR(255) NOT NULL, -- Industry/sector
+    lugar_operacion TEXT NOT NULL, -- Where they operate
+
+    -- Metadata
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    last_login TIMESTAMP WITH TIME ZONE,
-    is_active BOOLEAN DEFAULT TRUE,
     metadata JSONB DEFAULT '{}'::jsonb
 );
 
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_users_created_at ON users(created_at);
+CREATE INDEX idx_characterization_email ON client_characterization(email);
+CREATE INDEX idx_characterization_documento ON client_characterization(documento);
+CREATE INDEX idx_characterization_created_at ON client_characterization(created_at);
 
 -- ============================================================================
--- EVENTS TABLE
--- Track all user interactions and system events
+-- NAMING PROJECTS TABLE
+-- Tracks the overall naming and trademark registration project
 -- ============================================================================
-CREATE TABLE events (
+CREATE TABLE naming_projects (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
-    event_type VARCHAR(100) NOT NULL, -- 'form_submission', 'name_generation', 'trademark_check', 'login', etc.
-    event_name VARCHAR(255),
+    characterization_id UUID NOT NULL REFERENCES client_characterization(id) ON DELETE CASCADE,
+
+    -- Project Information
+    project_code VARCHAR(50) UNIQUE NOT NULL, -- e.g., "BRA-2025-001"
+    package_type VARCHAR(50) DEFAULT 'START', -- Package selected
+    package_price DECIMAL(10, 2) DEFAULT 950.00,
+
+    -- Status Tracking
+    status VARCHAR(50) DEFAULT 'brief_pending' NOT NULL,
+    -- Possible statuses: 'brief_pending', 'brief_completed', 'payment_pending', 'payment_completed',
+    --                   'naming_in_progress', 'proposals_sent', 'client_selected',
+    --                   'indecopi_submitted', 'indecopi_in_review', 'registered', 'rejected', 'cancelled'
+
+    current_stage VARCHAR(50) DEFAULT 'onboarding',
+    -- Stages: 'onboarding', 'naming', 'registration', 'completed'
+
+    -- Timeline
+    brief_completed_at TIMESTAMP WITH TIME ZONE,
+    payment_completed_at TIMESTAMP WITH TIME ZONE,
+    naming_started_at TIMESTAMP WITH TIME ZONE,
+    proposals_sent_at TIMESTAMP WITH TIME ZONE,
+    client_selected_at TIMESTAMP WITH TIME ZONE,
+    indecopi_submitted_at TIMESTAMP WITH TIME ZONE,
+    registered_at TIMESTAMP WITH TIME ZONE,
+
+    -- Selected Name
+    selected_name VARCHAR(100),
+    selected_proposal_id UUID, -- References generated_names table
+
+    -- INDECOPI Information
+    indecopi_expediente VARCHAR(100), -- Expediente number
+    indecopi_clase INTEGER, -- NICE classification (1-45)
+    indecopi_certificado VARCHAR(100), -- Certificate number
+
+    -- Metadata
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    notes TEXT,
+    metadata JSONB DEFAULT '{}'::jsonb
+);
+
+CREATE INDEX idx_projects_characterization_id ON naming_projects(characterization_id);
+CREATE INDEX idx_projects_status ON naming_projects(status);
+CREATE INDEX idx_projects_project_code ON naming_projects(project_code);
+CREATE INDEX idx_projects_created_at ON naming_projects(created_at);
+
+-- ============================================================================
+-- BRIEFS TABLE
+-- Stores responses to the brand brief (Step 2)
+-- ============================================================================
+CREATE TABLE briefs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    project_id UUID NOT NULL REFERENCES naming_projects(id) ON DELETE CASCADE,
+
+    -- Brief Questions
+    tiene_nombre BOOLEAN NOT NULL, -- Already has a name
+    producto_servicio TEXT NOT NULL, -- Product/service description
+    publico_objetivo TEXT NOT NULL, -- Target audience
+    valores TEXT NOT NULL, -- Brand values/ideas
+
+    -- 3 defining words
+    palabra_1 VARCHAR(100) NOT NULL,
+    palabra_2 VARCHAR(100) NOT NULL,
+    palabra_3 VARCHAR(100) NOT NULL,
+
+    idea_nombre VARCHAR(255), -- Optional name idea
+    tiene_logo BOOLEAN NOT NULL, -- Has logo
+    donde_vende TEXT NOT NULL, -- Where they sell
+    idioma_preferencia VARCHAR(50) NOT NULL, -- Language preference (espanol/ingles/neutro/indiferente)
+
+    -- Metadata
+    completed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    time_spent_seconds INTEGER, -- Time to complete
+    metadata JSONB DEFAULT '{}'::jsonb
+);
+
+CREATE INDEX idx_briefs_project_id ON briefs(project_id);
+CREATE INDEX idx_briefs_completed_at ON briefs(completed_at);
+
+-- ============================================================================
+-- PAYMENTS TABLE
+-- Tracks payment transactions
+-- ============================================================================
+CREATE TABLE payments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    project_id UUID NOT NULL REFERENCES naming_projects(id) ON DELETE CASCADE,
+
+    -- Payment Information
+    amount DECIMAL(10, 2) NOT NULL,
+    currency VARCHAR(3) DEFAULT 'PEN', -- Peruvian Soles
+    payment_method VARCHAR(50), -- 'culqi', 'niubiz', 'stripe', 'bank_transfer'
+
+    -- Payment Status
+    status VARCHAR(50) DEFAULT 'pending' NOT NULL,
+    -- Possible statuses: 'pending', 'processing', 'completed', 'failed', 'refunded', 'cancelled'
+
+    -- Gateway Information
+    gateway_transaction_id VARCHAR(255), -- External payment ID
+    gateway_response JSONB, -- Raw gateway response
+
+    -- Customer Info
+    payer_email VARCHAR(255),
+    payer_name VARCHAR(255),
+
+    -- Timestamps
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    paid_at TIMESTAMP WITH TIME ZONE,
+    refunded_at TIMESTAMP WITH TIME ZONE,
+
+    -- Additional Info
     ip_address INET,
     user_agent TEXT,
-    session_id VARCHAR(255),
-    referrer TEXT,
-    metadata JSONB DEFAULT '{}'::jsonb,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_events_user_id ON events(user_id);
-CREATE INDEX idx_events_event_type ON events(event_type);
-CREATE INDEX idx_events_created_at ON events(created_at);
-CREATE INDEX idx_events_session_id ON events(session_id);
-
--- ============================================================================
--- FORM SUBMISSIONS TABLE
--- Stores metadata about form submissions
--- ============================================================================
-CREATE TABLE form_submissions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
-    event_id UUID REFERENCES events(id) ON DELETE CASCADE,
-    form_type VARCHAR(100) DEFAULT 'brief_brandy', -- Type of form submitted
-    status VARCHAR(50) DEFAULT 'completed', -- 'completed', 'partial', 'abandoned'
-    completion_percentage INTEGER DEFAULT 100,
-    time_spent_seconds INTEGER,
-    submitted_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    notes TEXT,
     metadata JSONB DEFAULT '{}'::jsonb
 );
 
-CREATE INDEX idx_form_submissions_user_id ON form_submissions(user_id);
-CREATE INDEX idx_form_submissions_event_id ON form_submissions(event_id);
-CREATE INDEX idx_form_submissions_form_type ON form_submissions(form_type);
-CREATE INDEX idx_form_submissions_submitted_at ON form_submissions(submitted_at);
+CREATE INDEX idx_payments_project_id ON payments(project_id);
+CREATE INDEX idx_payments_status ON payments(status);
+CREATE INDEX idx_payments_created_at ON payments(created_at);
+CREATE INDEX idx_payments_gateway_transaction_id ON payments(gateway_transaction_id);
 
 -- ============================================================================
--- FORM ANSWERS TABLE
--- Stores individual field answers in normalized format
+-- PROJECT PROPOSALS TABLE
+-- Links generated names to specific projects
 -- ============================================================================
-CREATE TABLE form_answers (
+CREATE TABLE project_proposals (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    submission_id UUID REFERENCES form_submissions(id) ON DELETE CASCADE,
-    field_name VARCHAR(100) NOT NULL,
-    field_value TEXT,
-    field_type VARCHAR(50), -- 'text', 'textarea', 'checkbox', 'url', etc.
-    field_order INTEGER,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
+    project_id UUID NOT NULL REFERENCES naming_projects(id) ON DELETE CASCADE,
+    generated_name_id UUID REFERENCES generated_names(id) ON DELETE SET NULL,
 
-CREATE INDEX idx_form_answers_submission_id ON form_answers(submission_id);
-CREATE INDEX idx_form_answers_field_name ON form_answers(field_name);
-
--- ============================================================================
--- GENERATED NAMES TABLE
--- Stores brand names generated for users
--- ============================================================================
-CREATE TABLE generated_names (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
-    event_id UUID REFERENCES events(id) ON DELETE SET NULL,
-    submission_id UUID REFERENCES form_submissions(id) ON DELETE SET NULL,
+    -- Proposal Information
     name VARCHAR(100) NOT NULL,
-    style VARCHAR(50), -- 'evocative', 'syllabic', 'modern', 'hybrid'
-    min_length INTEGER,
-    max_length INTEGER,
-    category VARCHAR(100),
-    probability FLOAT,
-    risk_level VARCHAR(20), -- 'LOW', 'MEDIUM', 'HIGH', 'VERY HIGH'
-    scores JSONB DEFAULT '{}'::jsonb, -- Store similarity scores
-    top_conflicts JSONB DEFAULT '[]'::jsonb, -- Store conflicting trademarks
-    recommendation TEXT,
-    is_favorite BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
+    proposal_order INTEGER DEFAULT 1, -- 1st, 2nd, or 3rd proposal
+    rationale TEXT, -- Why we recommend this name
 
-CREATE INDEX idx_generated_names_user_id ON generated_names(user_id);
-CREATE INDEX idx_generated_names_submission_id ON generated_names(submission_id);
-CREATE INDEX idx_generated_names_name ON generated_names(name);
-CREATE INDEX idx_generated_names_risk_level ON generated_names(risk_level);
-CREATE INDEX idx_generated_names_created_at ON generated_names(created_at);
+    -- Status
+    status VARCHAR(50) DEFAULT 'proposed',
+    -- Possible statuses: 'proposed', 'client_favorite', 'selected', 'rejected'
 
--- ============================================================================
--- TRADEMARK CHECKS TABLE
--- Stores individual trademark check history
--- ============================================================================
-CREATE TABLE trademark_checks (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
-    event_id UUID REFERENCES events(id) ON DELETE SET NULL,
-    name VARCHAR(100) NOT NULL,
-    category INTEGER, -- NICE classification 1-45
-    search_type VARCHAR(50), -- 'phonetic', 'exact', 'partial'
-    probability FLOAT,
-    risk_level VARCHAR(20),
-    scores JSONB DEFAULT '{}'::jsonb,
-    conflicts_found INTEGER DEFAULT 0,
-    conflicts JSONB DEFAULT '[]'::jsonb,
-    checked_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
+    is_selected BOOLEAN DEFAULT FALSE,
 
-CREATE INDEX idx_trademark_checks_user_id ON trademark_checks(user_id);
-CREATE INDEX idx_trademark_checks_name ON trademark_checks(name);
-CREATE INDEX idx_trademark_checks_checked_at ON trademark_checks(checked_at);
+    -- Timestamps
+    sent_to_client_at TIMESTAMP WITH TIME ZONE,
+    client_feedback TEXT,
+    client_responded_at TIMESTAMP WITH TIME ZONE,
 
--- ============================================================================
--- SIMILARITY CHECKS TABLE
--- Stores name-to-name comparison results
--- ============================================================================
-CREATE TABLE similarity_checks (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
-    event_id UUID REFERENCES events(id) ON DELETE SET NULL,
-    name1 VARCHAR(100) NOT NULL,
-    name2 VARCHAR(100) NOT NULL,
-    phonetic_score FLOAT,
-    spelling_score FLOAT,
-    visual_score FLOAT,
-    overall_score FLOAT,
-    is_conflict BOOLEAN,
-    algorithm_details JSONB DEFAULT '{}'::jsonb,
-    checked_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_similarity_checks_user_id ON similarity_checks(user_id);
-CREATE INDEX idx_similarity_checks_name1 ON similarity_checks(name1);
-CREATE INDEX idx_similarity_checks_checked_at ON similarity_checks(checked_at);
-
--- ============================================================================
--- CACHED SEARCHES TABLE
--- Replaces file-based pickle cache with database cache
--- ============================================================================
-CREATE TABLE cached_searches (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    query VARCHAR(100) NOT NULL,
-    search_type VARCHAR(50) NOT NULL,
-    category INTEGER,
-    results JSONB NOT NULL,
-    hit_count INTEGER DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    expires_at TIMESTAMP WITH TIME ZONE,
-    last_accessed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    metadata JSONB DEFAULT '{}'::jsonb
 );
 
-CREATE UNIQUE INDEX idx_cached_searches_unique ON cached_searches(query, search_type, category);
-CREATE INDEX idx_cached_searches_expires_at ON cached_searches(expires_at);
+CREATE INDEX idx_proposals_project_id ON project_proposals(project_id);
+CREATE INDEX idx_proposals_status ON project_proposals(status);
+CREATE INDEX idx_proposals_is_selected ON project_proposals(is_selected);
+
+-- ============================================================================
+-- PROJECT NOTES TABLE
+-- Internal notes and communications log
+-- ============================================================================
+CREATE TABLE project_notes (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    project_id UUID NOT NULL REFERENCES naming_projects(id) ON DELETE CASCADE,
+
+    note_type VARCHAR(50) NOT NULL, -- 'internal', 'client_communication', 'indecopi_update', 'status_change'
+    note_text TEXT NOT NULL,
+
+    created_by VARCHAR(255), -- User/system who created the note
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+
+    is_visible_to_client BOOLEAN DEFAULT FALSE,
+    metadata JSONB DEFAULT '{}'::jsonb
+);
+
+CREATE INDEX idx_notes_project_id ON project_notes(project_id);
+CREATE INDEX idx_notes_created_at ON project_notes(created_at);
+CREATE INDEX idx_notes_note_type ON project_notes(note_type);
+
+-- ============================================================================
+-- UPDATE EXISTING TABLES
+-- ============================================================================
+
+-- Update generated_names to optionally link to projects
+ALTER TABLE generated_names
+ADD COLUMN project_id UUID REFERENCES naming_projects(id) ON DELETE SET NULL;
+
+CREATE INDEX idx_generated_names_project_id ON generated_names(project_id);
 
 -- ============================================================================
 -- HELPER FUNCTIONS
@@ -192,113 +255,203 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Trigger to auto-update updated_at on users table
-CREATE TRIGGER update_users_updated_at
-    BEFORE UPDATE ON users
+-- Triggers for updated_at
+CREATE TRIGGER update_characterization_updated_at
+    BEFORE UPDATE ON client_characterization
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
--- Function to clean expired cache entries
-CREATE OR REPLACE FUNCTION clean_expired_cache()
-RETURNS INTEGER AS $$
+CREATE TRIGGER update_projects_updated_at
+    BEFORE UPDATE ON naming_projects
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Function to generate project code
+CREATE OR REPLACE FUNCTION generate_project_code()
+RETURNS TEXT AS $$
 DECLARE
-    deleted_count INTEGER;
+    next_number INTEGER;
+    project_code TEXT;
 BEGIN
-    DELETE FROM cached_searches WHERE expires_at < CURRENT_TIMESTAMP;
-    GET DIAGNOSTICS deleted_count = ROW_COUNT;
-    RETURN deleted_count;
+    -- Get the count of projects created today
+    SELECT COUNT(*) + 1 INTO next_number
+    FROM naming_projects
+    WHERE DATE(created_at) = CURRENT_DATE;
+
+    -- Format: BRA-YYYYMMDD-XXX
+    project_code := 'BRA-' || TO_CHAR(CURRENT_DATE, 'YYYYMMDD') || '-' || LPAD(next_number::TEXT, 3, '0');
+
+    RETURN project_code;
 END;
 $$ LANGUAGE plpgsql;
+
+-- Trigger to auto-generate project code
+CREATE OR REPLACE FUNCTION set_project_code()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.project_code IS NULL THEN
+        NEW.project_code := generate_project_code();
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER auto_generate_project_code
+    BEFORE INSERT ON naming_projects
+    FOR EACH ROW
+    EXECUTE FUNCTION set_project_code();
 
 -- ============================================================================
 -- VIEWS
 -- ============================================================================
 
--- View for complete form submissions with answers
-CREATE OR REPLACE VIEW v_form_submissions_complete AS
+-- Complete project overview
+CREATE OR REPLACE VIEW v_projects_complete AS
 SELECT
-    fs.id AS submission_id,
-    fs.user_id,
-    u.email,
-    u.full_name,
-    u.company_name,
-    fs.form_type,
-    fs.status,
-    fs.completion_percentage,
-    fs.time_spent_seconds,
-    fs.submitted_at,
-    json_object_agg(
-        fa.field_name,
-        json_build_object(
-            'value', fa.field_value,
-            'type', fa.field_type
-        ) ORDER BY fa.field_order
-    ) AS answers,
-    fs.metadata
-FROM form_submissions fs
-LEFT JOIN users u ON fs.user_id = u.id
-LEFT JOIN form_answers fa ON fs.id = fa.submission_id
-GROUP BY fs.id, u.email, u.full_name, u.company_name;
+    p.id AS project_id,
+    p.project_code,
+    p.status,
+    p.current_stage,
+    p.package_type,
+    p.package_price,
 
--- View for user activity summary
-CREATE OR REPLACE VIEW v_user_activity_summary AS
+    -- Client Information
+    c.razon_social,
+    c.tipo_persona,
+    c.documento,
+    c.email,
+    c.telefono,
+    c.etapa_negocio,
+    c.rubro,
+
+    -- Brief Information
+    b.producto_servicio,
+    b.publico_objetivo,
+    b.valores,
+    b.idioma_preferencia,
+
+    -- Selected Name
+    p.selected_name,
+
+    -- Payment Information
+    pay.status AS payment_status,
+    pay.amount AS payment_amount,
+    pay.paid_at AS payment_date,
+
+    -- Timeline
+    p.created_at AS project_created,
+    p.brief_completed_at,
+    p.payment_completed_at,
+    p.naming_started_at,
+    p.proposals_sent_at,
+    p.registered_at,
+
+    -- INDECOPI
+    p.indecopi_expediente,
+    p.indecopi_certificado
+
+FROM naming_projects p
+LEFT JOIN client_characterization c ON p.characterization_id = c.id
+LEFT JOIN briefs b ON p.id = b.project_id
+LEFT JOIN payments pay ON p.id = pay.project_id AND pay.status = 'completed';
+
+-- Active projects requiring attention
+CREATE OR REPLACE VIEW v_projects_active AS
 SELECT
-    u.id AS user_id,
-    u.email,
-    u.full_name,
-    u.created_at AS user_since,
-    COUNT(DISTINCT fs.id) AS total_form_submissions,
-    COUNT(DISTINCT gn.id) AS total_names_generated,
-    COUNT(DISTINCT tc.id) AS total_trademark_checks,
-    COUNT(DISTINCT sc.id) AS total_similarity_checks,
-    MAX(e.created_at) AS last_activity,
-    COUNT(DISTINCT e.id) AS total_events
-FROM users u
-LEFT JOIN form_submissions fs ON u.id = fs.user_id
-LEFT JOIN generated_names gn ON u.id = gn.user_id
-LEFT JOIN trademark_checks tc ON u.id = tc.user_id
-LEFT JOIN similarity_checks sc ON u.id = sc.user_id
-LEFT JOIN events e ON u.id = e.user_id
-GROUP BY u.id;
+    p.project_code,
+    p.status,
+    p.current_stage,
+    c.razon_social,
+    c.email,
+    c.telefono,
+    p.created_at,
+    EXTRACT(DAY FROM (CURRENT_TIMESTAMP - p.created_at)) AS days_since_creation,
+    CASE
+        WHEN p.status = 'brief_pending' THEN 'Waiting for brief completion'
+        WHEN p.status = 'payment_pending' THEN 'Waiting for payment'
+        WHEN p.status = 'naming_in_progress' THEN 'Creating name proposals'
+        WHEN p.status = 'proposals_sent' THEN 'Waiting for client selection'
+        WHEN p.status = 'indecopi_submitted' THEN 'INDECOPI review in progress'
+        ELSE 'Check project status'
+    END AS action_required
+FROM naming_projects p
+JOIN client_characterization c ON p.characterization_id = c.id
+WHERE p.status NOT IN ('registered', 'cancelled', 'rejected')
+ORDER BY p.created_at DESC;
 
--- View for popular generated names
-CREATE OR REPLACE VIEW v_popular_names AS
+-- Payment summary
+CREATE OR REPLACE VIEW v_payment_summary AS
 SELECT
-    name,
-    COUNT(*) AS generation_count,
-    AVG(probability) AS avg_probability,
-    MODE() WITHIN GROUP (ORDER BY risk_level) AS common_risk_level,
-    COUNT(DISTINCT user_id) AS unique_users,
-    MIN(created_at) AS first_generated,
-    MAX(created_at) AS last_generated
-FROM generated_names
-GROUP BY name
-ORDER BY generation_count DESC;
+    DATE(created_at) AS payment_date,
+    COUNT(*) AS total_payments,
+    COUNT(CASE WHEN status = 'completed' THEN 1 END) AS completed_payments,
+    COUNT(CASE WHEN status = 'pending' THEN 1 END) AS pending_payments,
+    COUNT(CASE WHEN status = 'failed' THEN 1 END) AS failed_payments,
+    SUM(CASE WHEN status = 'completed' THEN amount ELSE 0 END) AS revenue,
+    AVG(CASE WHEN status = 'completed' THEN amount END) AS avg_transaction
+FROM payments
+GROUP BY DATE(created_at)
+ORDER BY payment_date DESC;
 
--- ============================================================================
--- SAMPLE DATA (Optional - for testing)
--- ============================================================================
+-- Client acquisition funnel
+CREATE OR REPLACE VIEW v_acquisition_funnel AS
+SELECT
+    COUNT(DISTINCT c.id) AS total_characterizations,
+    COUNT(DISTINCT CASE WHEN b.id IS NOT NULL THEN c.id END) AS completed_briefs,
+    COUNT(DISTINCT CASE WHEN pay.status = 'completed' THEN c.id END) AS paid_clients,
+    COUNT(DISTINCT CASE WHEN p.status IN ('registered') THEN c.id END) AS registered_clients,
 
--- Insert a sample user
-INSERT INTO users (email, full_name, company_name, country)
-VALUES ('test@example.com', 'Test User', 'Test Company', 'Peru');
+    ROUND(
+        100.0 * COUNT(DISTINCT CASE WHEN b.id IS NOT NULL THEN c.id END) /
+        NULLIF(COUNT(DISTINCT c.id), 0), 2
+    ) AS brief_completion_rate,
 
--- Insert a sample event
-INSERT INTO events (event_type, event_name, ip_address, metadata)
-VALUES ('form_submission', 'Brief Brandy Form Submitted', '127.0.0.1', '{"source": "landing_page"}'::jsonb);
+    ROUND(
+        100.0 * COUNT(DISTINCT CASE WHEN pay.status = 'completed' THEN c.id END) /
+        NULLIF(COUNT(DISTINCT CASE WHEN b.id IS NOT NULL THEN c.id END), 0), 2
+    ) AS payment_conversion_rate,
+
+    ROUND(
+        100.0 * COUNT(DISTINCT CASE WHEN p.status = 'registered' THEN c.id END) /
+        NULLIF(COUNT(DISTINCT CASE WHEN pay.status = 'completed' THEN c.id END), 0), 2
+    ) AS registration_success_rate
+
+FROM client_characterization c
+LEFT JOIN naming_projects p ON c.id = p.characterization_id
+LEFT JOIN briefs b ON p.id = b.project_id
+LEFT JOIN payments pay ON p.id = pay.project_id;
 
 -- ============================================================================
 -- COMMENTS
 -- ============================================================================
 
-COMMENT ON TABLE users IS 'Stores user account information';
-COMMENT ON TABLE events IS 'Tracks all user interactions and system events';
-COMMENT ON TABLE form_submissions IS 'Stores metadata about form submissions';
-COMMENT ON TABLE form_answers IS 'Stores individual field answers in normalized format';
-COMMENT ON TABLE generated_names IS 'Stores brand names generated for users';
-COMMENT ON TABLE trademark_checks IS 'Stores individual trademark check history';
-COMMENT ON TABLE similarity_checks IS 'Stores name-to-name comparison results';
-COMMENT ON TABLE cached_searches IS 'Database-based cache for INDECOPI searches';
+COMMENT ON TABLE client_characterization IS 'Stores legal and business information from Step 1 of the form';
+COMMENT ON TABLE naming_projects IS 'Tracks overall naming and trademark registration projects';
+COMMENT ON TABLE briefs IS 'Stores brand brief responses from Step 2';
+COMMENT ON TABLE payments IS 'Tracks payment transactions and status';
+COMMENT ON TABLE project_proposals IS 'Links generated name proposals to projects';
+COMMENT ON TABLE project_notes IS 'Internal notes and communication log for projects';
+
+COMMENT ON COLUMN naming_projects.status IS 'Current status of the project workflow';
+COMMENT ON COLUMN naming_projects.current_stage IS 'High-level stage: onboarding, naming, registration, completed';
+COMMENT ON COLUMN payments.status IS 'Payment transaction status';
+
+-- ============================================================================
+-- SAMPLE DATA (Optional - for testing)
+-- ============================================================================
+
+-- Sample characterization
+INSERT INTO client_characterization (
+    razon_social, tipo_persona, documento, email, telefono, nacionalidad,
+    direccion, distrito, provincia, departamento,
+    etapa_negocio, rubro, lugar_operacion
+) VALUES (
+    'Test Company SAC', 'juridica', '20123456789', 'test@example.com', '+51987654321', 'Peruana',
+    'Av. Principal 123', 'Miraflores', 'Lima', 'Lima',
+    'operacion', 'Tecnología', 'Lima, Perú'
+) RETURNING id;
+
+-- Note: Additional sample data should reference the returned IDs
 
 -- ============================================================================
 -- GRANTS (Adjust based on your user/role setup)
