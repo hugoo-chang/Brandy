@@ -160,12 +160,12 @@ If this is a **new database**, use the new schema directly:
 
 **PostgreSQL:**
 ```bash
-psql -U your_user -d brandy_db -f database/schema_new.sql
+psql -U your_user -d brandy_db -f database/schema.sql
 ```
 
 **MySQL:**
 ```bash
-mysql -u your_user -p brandy_db < database/schema_new_mysql.sql
+mysql -u your_user -p brandy_db < database/schema_mysql.sql
 ```
 
 ### MIGRATION from Old Schema
@@ -176,12 +176,12 @@ If you have an **existing database** with the old schema:
 
 **PostgreSQL:**
 ```bash
-psql -U your_user -d brandy_db -f database/migrations/003_complete_database_rebuild.sql
+psql -U your_user -d brandy_db -f database/migrations/001_initial_schema.sql
 ```
 
 **MySQL:**
 ```bash
-mysql -u your_user -p brandy_db < database/migrations/003_complete_database_rebuild_mysql.sql
+mysql -u your_user -p brandy_db < database/migrations/001_initial_schema_mysql.sql
 ```
 
 ---

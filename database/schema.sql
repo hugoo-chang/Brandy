@@ -1,32 +1,34 @@
--- Brandy Database Schema V2
--- PostgreSQL relational database for MVP multi-step form
--- Updated: 2025-10-29
+-- Brandy Database Schema - Simplified MVP
+-- PostgreSQL relational database for multi-step landing page
+-- Created: 2025-11-03
 --
--- NEW FEATURES:
--- - Client characterization (legal/business data)
--- - Naming projects tracking
--- - Payment processing
--- - Brief responses (simplified 9 questions)
+-- SIMPLIFIED STRUCTURE: 3 TABLES ONLY
+-- 1. client_info - Client characterization data (Step 1)
+-- 2. brief_responses - Brand brief answers (Step 2)
+-- 3. payment_info - Payment and confirmation data (Step 3-4)
 
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- ============================================================================
--- CLIENT CHARACTERIZATION TABLE
--- Stores legal and business information from Step 1
+-- TABLE 1: CLIENT_INFO
+-- Stores client characterization information from Step 1
+-- Primary Key: id_number (DNI or RUC)
+-- Auto-generates: user_id
 -- ============================================================================
-CREATE TABLE client_characterization (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+CREATE TABLE client_info (
+    -- Primary identifier
+    id_number VARCHAR(11) PRIMARY KEY, -- DNI (8 digits) or RUC (11 digits)
+    user_id UUID UNIQUE NOT NULL DEFAULT uuid_generate_v4(),
 
     -- Legal/Identity Information
     razon_social VARCHAR(255) NOT NULL,
     tipo_persona VARCHAR(20) NOT NULL CHECK (tipo_persona IN ('natural', 'juridica')),
-    documento VARCHAR(50) NOT NULL, -- DNI or RUC
-    representante_legal VARCHAR(255), -- Only for 'juridica'
+    representante_legal VARCHAR(255), -- Only for juridica
 
     -- Contact Information
     email VARCHAR(255) NOT NULL,
-    telefono VARCHAR(50) NOT NULL,
+    telefono VARCHAR(9) NOT NULL, -- 9XXXXXXXX format
     nacionalidad VARCHAR(100) DEFAULT 'Peruana',
 
     -- Address Information
@@ -36,211 +38,116 @@ CREATE TABLE client_characterization (
     departamento VARCHAR(100) NOT NULL,
 
     -- Business Information
-    etapa_negocio VARCHAR(20) NOT NULL CHECK (etapa_negocio IN ('idea', 'operacion', 'expansion')),
     rubro VARCHAR(255) NOT NULL, -- Industry/sector
     lugar_operacion TEXT NOT NULL, -- Where they operate
 
     -- Metadata
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    metadata JSONB DEFAULT '{}'::jsonb
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_characterization_email ON client_characterization(email);
-CREATE INDEX idx_characterization_documento ON client_characterization(documento);
-CREATE INDEX idx_characterization_created_at ON client_characterization(created_at);
+-- Indexes for faster lookups
+CREATE INDEX idx_client_email ON client_info(email);
+CREATE INDEX idx_client_user_id ON client_info(user_id);
+CREATE INDEX idx_client_created_at ON client_info(created_at);
 
 -- ============================================================================
--- NAMING PROJECTS TABLE
--- Tracks the overall naming and trademark registration project
+-- TABLE 2: BRIEF_RESPONSES
+-- Stores brand brief responses from Step 2
+-- Foreign Keys: user_id and id_number reference client_info
 -- ============================================================================
-CREATE TABLE naming_projects (
+CREATE TABLE brief_responses (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    characterization_id UUID NOT NULL REFERENCES client_characterization(id) ON DELETE CASCADE,
 
-    -- Project Information
-    project_code VARCHAR(50) UNIQUE NOT NULL, -- e.g., "BRA-2025-001"
-    package_type VARCHAR(50) DEFAULT 'START', -- Package selected
-    package_price DECIMAL(10, 2) DEFAULT 950.00,
+    -- Foreign Keys
+    user_id UUID NOT NULL REFERENCES client_info(user_id) ON DELETE CASCADE,
+    id_number VARCHAR(11) NOT NULL REFERENCES client_info(id_number) ON DELETE CASCADE,
 
-    -- Status Tracking
-    status VARCHAR(50) DEFAULT 'brief_pending' NOT NULL,
-    -- Possible statuses: 'brief_pending', 'brief_completed', 'payment_pending', 'payment_completed',
-    --                   'naming_in_progress', 'proposals_sent', 'client_selected',
-    --                   'indecopi_submitted', 'indecopi_in_review', 'registered', 'rejected', 'cancelled'
+    -- Question 1: ¿Ya tiene nombre?
+    tiene_nombre BOOLEAN NOT NULL,
+    nombre_actual VARCHAR(255), -- If tiene_nombre = true
 
-    current_stage VARCHAR(50) DEFAULT 'onboarding',
-    -- Stages: 'onboarding', 'naming', 'registration', 'completed'
+    -- Question 2: Producto o servicio
+    producto_servicio TEXT NOT NULL,
 
-    -- Timeline
-    brief_completed_at TIMESTAMP WITH TIME ZONE,
-    payment_completed_at TIMESTAMP WITH TIME ZONE,
-    naming_started_at TIMESTAMP WITH TIME ZONE,
-    proposals_sent_at TIMESTAMP WITH TIME ZONE,
-    client_selected_at TIMESTAMP WITH TIME ZONE,
-    indecopi_submitted_at TIMESTAMP WITH TIME ZONE,
-    registered_at TIMESTAMP WITH TIME ZONE,
+    -- Question 3: Público objetivo
+    publico_objetivo TEXT NOT NULL,
 
-    -- Selected Name
-    selected_name VARCHAR(100),
-    selected_proposal_id UUID, -- References generated_names table
+    -- Question 4: Valores o ideas
+    valores TEXT NOT NULL,
 
-    -- INDECOPI Information
-    indecopi_expediente VARCHAR(100), -- Expediente number
-    indecopi_clase INTEGER, -- NICE classification (1-45)
-    indecopi_certificado VARCHAR(100), -- Certificate number
-
-    -- Metadata
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    notes TEXT,
-    metadata JSONB DEFAULT '{}'::jsonb
-);
-
-CREATE INDEX idx_projects_characterization_id ON naming_projects(characterization_id);
-CREATE INDEX idx_projects_status ON naming_projects(status);
-CREATE INDEX idx_projects_project_code ON naming_projects(project_code);
-CREATE INDEX idx_projects_created_at ON naming_projects(created_at);
-
--- ============================================================================
--- BRIEFS TABLE
--- Stores responses to the brand brief (Step 2)
--- ============================================================================
-CREATE TABLE briefs (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    project_id UUID NOT NULL REFERENCES naming_projects(id) ON DELETE CASCADE,
-
-    -- Brief Questions
-    tiene_nombre BOOLEAN NOT NULL, -- Already has a name
-    producto_servicio TEXT NOT NULL, -- Product/service description
-    publico_objetivo TEXT NOT NULL, -- Target audience
-    valores TEXT NOT NULL, -- Brand values/ideas
-
-    -- 3 defining words
+    -- Question 5: 3 palabras que definan el negocio
     palabra_1 VARCHAR(100) NOT NULL,
     palabra_2 VARCHAR(100) NOT NULL,
     palabra_3 VARCHAR(100) NOT NULL,
 
-    idea_nombre VARCHAR(255), -- Optional name idea
-    tiene_logo BOOLEAN NOT NULL, -- Has logo
-    donde_vende TEXT NOT NULL, -- Where they sell
-    idioma_preferencia VARCHAR(50) NOT NULL, -- Language preference (espanol/ingles/neutro/indiferente)
+    -- Question 6: Idea de nombre (opcional)
+    idea_nombre VARCHAR(255),
+
+    -- Question 7: ¿Tiene logo?
+    tiene_logo BOOLEAN NOT NULL,
+
+    -- Question 8: ¿Dónde vende?
+    donde_vende TEXT NOT NULL,
+
+    -- Question 9: Preferencia de idioma
+    idioma_preferencia VARCHAR(50) NOT NULL CHECK (idioma_preferencia IN ('espanol', 'ingles', 'neutro', 'indiferente')),
 
     -- Metadata
-    completed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    time_spent_seconds INTEGER, -- Time to complete
-    metadata JSONB DEFAULT '{}'::jsonb
+    submitted_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_briefs_project_id ON briefs(project_id);
-CREATE INDEX idx_briefs_completed_at ON briefs(completed_at);
+-- Indexes
+CREATE INDEX idx_brief_user_id ON brief_responses(user_id);
+CREATE INDEX idx_brief_id_number ON brief_responses(id_number);
+CREATE INDEX idx_brief_submitted_at ON brief_responses(submitted_at);
 
 -- ============================================================================
--- PAYMENTS TABLE
--- Tracks payment transactions
+-- TABLE 3: PAYMENT_INFO
+-- Stores payment and client confirmation information from Step 3-4
+-- Foreign Keys: user_id and id_number reference client_info
 -- ============================================================================
-CREATE TABLE payments (
+CREATE TABLE payment_info (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    project_id UUID NOT NULL REFERENCES naming_projects(id) ON DELETE CASCADE,
+
+    -- Foreign Keys
+    user_id UUID NOT NULL REFERENCES client_info(user_id) ON DELETE CASCADE,
+    id_number VARCHAR(11) NOT NULL REFERENCES client_info(id_number) ON DELETE CASCADE,
+
+    -- Case/Registration Number
+    case_number VARCHAR(50) UNIQUE NOT NULL, -- Format: BRA-YYYYMMDD-XXX
 
     -- Payment Information
-    amount DECIMAL(10, 2) NOT NULL,
-    currency VARCHAR(3) DEFAULT 'PEN', -- Peruvian Soles
-    payment_method VARCHAR(50), -- 'culqi', 'niubiz', 'stripe', 'bank_transfer'
+    amount DECIMAL(10, 2) NOT NULL DEFAULT 950.00,
+    currency VARCHAR(3) DEFAULT 'PEN',
+    payment_method VARCHAR(50), -- 'tarjeta', 'yape', 'transferencia', etc.
 
     -- Payment Status
-    status VARCHAR(50) DEFAULT 'pending' NOT NULL,
-    -- Possible statuses: 'pending', 'processing', 'completed', 'failed', 'refunded', 'cancelled'
+    payment_successful BOOLEAN DEFAULT FALSE,
+    payment_date TIMESTAMP WITH TIME ZONE,
+    payment_reference VARCHAR(255), -- External payment gateway reference
 
-    -- Gateway Information
-    gateway_transaction_id VARCHAR(255), -- External payment ID
-    gateway_response JSONB, -- Raw gateway response
-
-    -- Customer Info
-    payer_email VARCHAR(255),
-    payer_name VARCHAR(255),
-
-    -- Timestamps
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    paid_at TIMESTAMP WITH TIME ZONE,
-    refunded_at TIMESTAMP WITH TIME ZONE,
+    -- Client Contact Point
+    contact_email VARCHAR(255) DEFAULT 'contacto@brandia.pe',
+    contact_phone VARCHAR(20) DEFAULT '+51 999 888 777',
+    contact_whatsapp VARCHAR(20) DEFAULT '+51 999 888 777',
 
     -- Additional Info
+    terms_accepted BOOLEAN NOT NULL DEFAULT FALSE,
     ip_address INET,
     user_agent TEXT,
-    notes TEXT,
-    metadata JSONB DEFAULT '{}'::jsonb
-);
 
-CREATE INDEX idx_payments_project_id ON payments(project_id);
-CREATE INDEX idx_payments_status ON payments(status);
-CREATE INDEX idx_payments_created_at ON payments(created_at);
-CREATE INDEX idx_payments_gateway_transaction_id ON payments(gateway_transaction_id);
-
--- ============================================================================
--- PROJECT PROPOSALS TABLE
--- Links generated names to specific projects
--- ============================================================================
-CREATE TABLE project_proposals (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    project_id UUID NOT NULL REFERENCES naming_projects(id) ON DELETE CASCADE,
-    generated_name_id UUID REFERENCES generated_names(id) ON DELETE SET NULL,
-
-    -- Proposal Information
-    name VARCHAR(100) NOT NULL,
-    proposal_order INTEGER DEFAULT 1, -- 1st, 2nd, or 3rd proposal
-    rationale TEXT, -- Why we recommend this name
-
-    -- Status
-    status VARCHAR(50) DEFAULT 'proposed',
-    -- Possible statuses: 'proposed', 'client_favorite', 'selected', 'rejected'
-
-    is_selected BOOLEAN DEFAULT FALSE,
-
-    -- Timestamps
-    sent_to_client_at TIMESTAMP WITH TIME ZONE,
-    client_feedback TEXT,
-    client_responded_at TIMESTAMP WITH TIME ZONE,
-
+    -- Metadata
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    metadata JSONB DEFAULT '{}'::jsonb
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_proposals_project_id ON project_proposals(project_id);
-CREATE INDEX idx_proposals_status ON project_proposals(status);
-CREATE INDEX idx_proposals_is_selected ON project_proposals(is_selected);
-
--- ============================================================================
--- PROJECT NOTES TABLE
--- Internal notes and communications log
--- ============================================================================
-CREATE TABLE project_notes (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    project_id UUID NOT NULL REFERENCES naming_projects(id) ON DELETE CASCADE,
-
-    note_type VARCHAR(50) NOT NULL, -- 'internal', 'client_communication', 'indecopi_update', 'status_change'
-    note_text TEXT NOT NULL,
-
-    created_by VARCHAR(255), -- User/system who created the note
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-
-    is_visible_to_client BOOLEAN DEFAULT FALSE,
-    metadata JSONB DEFAULT '{}'::jsonb
-);
-
-CREATE INDEX idx_notes_project_id ON project_notes(project_id);
-CREATE INDEX idx_notes_created_at ON project_notes(created_at);
-CREATE INDEX idx_notes_note_type ON project_notes(note_type);
-
--- ============================================================================
--- UPDATE EXISTING TABLES
--- ============================================================================
-
--- Update generated_names to optionally link to projects
-ALTER TABLE generated_names
-ADD COLUMN project_id UUID REFERENCES naming_projects(id) ON DELETE SET NULL;
-
-CREATE INDEX idx_generated_names_project_id ON generated_names(project_id);
+-- Indexes
+CREATE INDEX idx_payment_user_id ON payment_info(user_id);
+CREATE INDEX idx_payment_id_number ON payment_info(id_number);
+CREATE INDEX idx_payment_case_number ON payment_info(case_number);
+CREATE INDEX idx_payment_successful ON payment_info(payment_successful);
+CREATE INDEX idx_payment_created_at ON payment_info(created_at);
 
 -- ============================================================================
 -- HELPER FUNCTIONS
@@ -256,202 +163,152 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Triggers for updated_at
-CREATE TRIGGER update_characterization_updated_at
-    BEFORE UPDATE ON client_characterization
+CREATE TRIGGER update_client_updated_at
+    BEFORE UPDATE ON client_info
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_projects_updated_at
-    BEFORE UPDATE ON naming_projects
+CREATE TRIGGER update_payment_updated_at
+    BEFORE UPDATE ON payment_info
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
--- Function to generate project code
-CREATE OR REPLACE FUNCTION generate_project_code()
+-- Function to generate case number
+CREATE OR REPLACE FUNCTION generate_case_number()
 RETURNS TEXT AS $$
 DECLARE
     next_number INTEGER;
-    project_code TEXT;
+    case_code TEXT;
 BEGIN
-    -- Get the count of projects created today
+    -- Get the count of payments created today
     SELECT COUNT(*) + 1 INTO next_number
-    FROM naming_projects
+    FROM payment_info
     WHERE DATE(created_at) = CURRENT_DATE;
 
     -- Format: BRA-YYYYMMDD-XXX
-    project_code := 'BRA-' || TO_CHAR(CURRENT_DATE, 'YYYYMMDD') || '-' || LPAD(next_number::TEXT, 3, '0');
+    case_code := 'BRA-' || TO_CHAR(CURRENT_DATE, 'YYYYMMDD') || '-' || LPAD(next_number::TEXT, 3, '0');
 
-    RETURN project_code;
+    RETURN case_code;
 END;
 $$ LANGUAGE plpgsql;
 
--- Trigger to auto-generate project code
-CREATE OR REPLACE FUNCTION set_project_code()
+-- Trigger to auto-generate case number
+CREATE OR REPLACE FUNCTION set_case_number()
 RETURNS TRIGGER AS $$
 BEGIN
-    IF NEW.project_code IS NULL THEN
-        NEW.project_code := generate_project_code();
+    IF NEW.case_number IS NULL OR NEW.case_number = '' THEN
+        NEW.case_number := generate_case_number();
     END IF;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER auto_generate_project_code
-    BEFORE INSERT ON naming_projects
+CREATE TRIGGER auto_generate_case_number
+    BEFORE INSERT ON payment_info
     FOR EACH ROW
-    EXECUTE FUNCTION set_project_code();
+    EXECUTE FUNCTION set_case_number();
 
 -- ============================================================================
 -- VIEWS
 -- ============================================================================
 
--- Complete project overview
-CREATE OR REPLACE VIEW v_projects_complete AS
+-- Complete client view with all related data
+CREATE OR REPLACE VIEW v_complete_client_data AS
 SELECT
-    p.id AS project_id,
-    p.project_code,
-    p.status,
-    p.current_stage,
-    p.package_type,
-    p.package_price,
-
-    -- Client Information
+    c.id_number,
+    c.user_id,
     c.razon_social,
     c.tipo_persona,
-    c.documento,
     c.email,
     c.telefono,
-    c.etapa_negocio,
     c.rubro,
+    c.lugar_operacion,
 
-    -- Brief Information
+    -- Brief data
+    b.tiene_nombre,
+    b.nombre_actual,
     b.producto_servicio,
     b.publico_objetivo,
     b.valores,
+    b.palabra_1,
+    b.palabra_2,
+    b.palabra_3,
     b.idioma_preferencia,
 
-    -- Selected Name
-    p.selected_name,
+    -- Payment data
+    p.case_number,
+    p.amount,
+    p.payment_successful,
+    p.payment_date,
+    p.payment_method,
 
-    -- Payment Information
-    pay.status AS payment_status,
-    pay.amount AS payment_amount,
-    pay.paid_at AS payment_date,
+    -- Timestamps
+    c.created_at AS client_registered_at,
+    b.submitted_at AS brief_submitted_at,
+    p.created_at AS payment_created_at
 
-    -- Timeline
-    p.created_at AS project_created,
-    p.brief_completed_at,
-    p.payment_completed_at,
-    p.naming_started_at,
-    p.proposals_sent_at,
-    p.registered_at,
+FROM client_info c
+LEFT JOIN brief_responses b ON c.user_id = b.user_id
+LEFT JOIN payment_info p ON c.user_id = p.user_id;
 
-    -- INDECOPI
-    p.indecopi_expediente,
-    p.indecopi_certificado
-
-FROM naming_projects p
-LEFT JOIN client_characterization c ON p.characterization_id = c.id
-LEFT JOIN briefs b ON p.id = b.project_id
-LEFT JOIN payments pay ON p.id = pay.project_id AND pay.status = 'completed';
-
--- Active projects requiring attention
-CREATE OR REPLACE VIEW v_projects_active AS
-SELECT
-    p.project_code,
-    p.status,
-    p.current_stage,
-    c.razon_social,
-    c.email,
-    c.telefono,
-    p.created_at,
-    EXTRACT(DAY FROM (CURRENT_TIMESTAMP - p.created_at)) AS days_since_creation,
-    CASE
-        WHEN p.status = 'brief_pending' THEN 'Waiting for brief completion'
-        WHEN p.status = 'payment_pending' THEN 'Waiting for payment'
-        WHEN p.status = 'naming_in_progress' THEN 'Creating name proposals'
-        WHEN p.status = 'proposals_sent' THEN 'Waiting for client selection'
-        WHEN p.status = 'indecopi_submitted' THEN 'INDECOPI review in progress'
-        ELSE 'Check project status'
-    END AS action_required
-FROM naming_projects p
-JOIN client_characterization c ON p.characterization_id = c.id
-WHERE p.status NOT IN ('registered', 'cancelled', 'rejected')
-ORDER BY p.created_at DESC;
-
--- Payment summary
-CREATE OR REPLACE VIEW v_payment_summary AS
+-- Payments summary view
+CREATE OR REPLACE VIEW v_payments_summary AS
 SELECT
     DATE(created_at) AS payment_date,
     COUNT(*) AS total_payments,
-    COUNT(CASE WHEN status = 'completed' THEN 1 END) AS completed_payments,
-    COUNT(CASE WHEN status = 'pending' THEN 1 END) AS pending_payments,
-    COUNT(CASE WHEN status = 'failed' THEN 1 END) AS failed_payments,
-    SUM(CASE WHEN status = 'completed' THEN amount ELSE 0 END) AS revenue,
-    AVG(CASE WHEN status = 'completed' THEN amount END) AS avg_transaction
-FROM payments
+    COUNT(CASE WHEN payment_successful = TRUE THEN 1 END) AS successful_payments,
+    COUNT(CASE WHEN payment_successful = FALSE THEN 1 END) AS pending_payments,
+    SUM(CASE WHEN payment_successful = TRUE THEN amount ELSE 0 END) AS total_revenue
+FROM payment_info
 GROUP BY DATE(created_at)
 ORDER BY payment_date DESC;
 
--- Client acquisition funnel
-CREATE OR REPLACE VIEW v_acquisition_funnel AS
+-- Recent registrations view
+CREATE OR REPLACE VIEW v_recent_registrations AS
 SELECT
-    COUNT(DISTINCT c.id) AS total_characterizations,
-    COUNT(DISTINCT CASE WHEN b.id IS NOT NULL THEN c.id END) AS completed_briefs,
-    COUNT(DISTINCT CASE WHEN pay.status = 'completed' THEN c.id END) AS paid_clients,
-    COUNT(DISTINCT CASE WHEN p.status IN ('registered') THEN c.id END) AS registered_clients,
-
-    ROUND(
-        100.0 * COUNT(DISTINCT CASE WHEN b.id IS NOT NULL THEN c.id END) /
-        NULLIF(COUNT(DISTINCT c.id), 0), 2
-    ) AS brief_completion_rate,
-
-    ROUND(
-        100.0 * COUNT(DISTINCT CASE WHEN pay.status = 'completed' THEN c.id END) /
-        NULLIF(COUNT(DISTINCT CASE WHEN b.id IS NOT NULL THEN c.id END), 0), 2
-    ) AS payment_conversion_rate,
-
-    ROUND(
-        100.0 * COUNT(DISTINCT CASE WHEN p.status = 'registered' THEN c.id END) /
-        NULLIF(COUNT(DISTINCT CASE WHEN pay.status = 'completed' THEN c.id END), 0), 2
-    ) AS registration_success_rate
-
-FROM client_characterization c
-LEFT JOIN naming_projects p ON c.id = p.characterization_id
-LEFT JOIN briefs b ON p.id = b.project_id
-LEFT JOIN payments pay ON p.id = pay.project_id;
+    c.razon_social,
+    c.email,
+    c.telefono,
+    p.case_number,
+    p.payment_successful,
+    p.created_at
+FROM client_info c
+JOIN payment_info p ON c.user_id = p.user_id
+ORDER BY p.created_at DESC
+LIMIT 50;
 
 -- ============================================================================
 -- COMMENTS
 -- ============================================================================
 
-COMMENT ON TABLE client_characterization IS 'Stores legal and business information from Step 1 of the form';
-COMMENT ON TABLE naming_projects IS 'Tracks overall naming and trademark registration projects';
-COMMENT ON TABLE briefs IS 'Stores brand brief responses from Step 2';
-COMMENT ON TABLE payments IS 'Tracks payment transactions and status';
-COMMENT ON TABLE project_proposals IS 'Links generated name proposals to projects';
-COMMENT ON TABLE project_notes IS 'Internal notes and communication log for projects';
+COMMENT ON TABLE client_info IS 'Stores client characterization information from Step 1 of landing page';
+COMMENT ON TABLE brief_responses IS 'Stores brand brief responses from Step 2 of landing page';
+COMMENT ON TABLE payment_info IS 'Stores payment and confirmation information from Step 3-4 of landing page';
 
-COMMENT ON COLUMN naming_projects.status IS 'Current status of the project workflow';
-COMMENT ON COLUMN naming_projects.current_stage IS 'High-level stage: onboarding, naming, registration, completed';
-COMMENT ON COLUMN payments.status IS 'Payment transaction status';
+COMMENT ON COLUMN client_info.id_number IS 'DNI (8 digits) or RUC (11 digits) - Primary Key';
+COMMENT ON COLUMN client_info.user_id IS 'Auto-generated unique user identifier';
+COMMENT ON COLUMN payment_info.case_number IS 'Auto-generated case number format: BRA-YYYYMMDD-XXX';
+COMMENT ON COLUMN payment_info.payment_successful IS 'TRUE if payment was successful, FALSE if pending/failed';
 
 -- ============================================================================
 -- SAMPLE DATA (Optional - for testing)
 -- ============================================================================
 
--- Sample characterization
-INSERT INTO client_characterization (
-    razon_social, tipo_persona, documento, email, telefono, nacionalidad,
+-- Sample client
+INSERT INTO client_info (
+    id_number, razon_social, tipo_persona, email, telefono,
     direccion, distrito, provincia, departamento,
-    etapa_negocio, rubro, lugar_operacion
+    rubro, lugar_operacion
 ) VALUES (
-    'Test Company SAC', 'juridica', '20123456789', 'test@example.com', '+51987654321', 'Peruana',
-    'Av. Principal 123', 'Miraflores', 'Lima', 'Lima',
-    'operacion', 'Tecnología', 'Lima, Perú'
-) RETURNING id;
+    '12345678', 'Juan Pérez', 'natural', 'juan.perez@example.com', '987654321',
+    'Av. Test 123', 'Miraflores', 'Lima', 'Lima',
+    'Tecnología', 'Lima, Perú'
+) ON CONFLICT (id_number) DO NOTHING;
 
--- Note: Additional sample data should reference the returned IDs
+-- Sample brief (will use the auto-generated user_id from above)
+-- In production, use the actual user_id
+-- INSERT INTO brief_responses (user_id, id_number, tiene_nombre, producto_servicio, ...)
+-- VALUES (...);
 
 -- ============================================================================
 -- GRANTS (Adjust based on your user/role setup)

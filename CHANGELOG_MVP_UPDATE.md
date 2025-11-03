@@ -207,12 +207,12 @@ Complete redesign of the landing page and database structure based on stakeholde
 
 **PostgreSQL:**
 ```bash
-psql -U user -d brandy_db -f database/schema_new.sql
+psql -U user -d brandy_db -f database/schema.sql
 ```
 
 **MySQL:**
 ```bash
-mysql -u user -p brandy_db < database/schema_new_mysql.sql
+mysql -u user -p brandy_db < database/schema_mysql.sql
 ```
 
 ### For Existing Databases
@@ -231,10 +231,10 @@ mysqldump -u user -p brandy_db > backup_$(date +%Y%m%d).sql
 **Run migration:**
 ```bash
 # PostgreSQL
-psql -U user -d brandy_db -f database/migrations/003_complete_database_rebuild.sql
+psql -U user -d brandy_db -f database/migrations/001_initial_schema.sql
 
 # MySQL
-mysql -u user -p brandy_db < database/migrations/003_complete_database_rebuild_mysql.sql
+mysql -u user -p brandy_db < database/migrations/001_initial_schema_mysql.sql
 ```
 
 ---
@@ -248,10 +248,10 @@ mysql -u user -p brandy_db < database/migrations/003_complete_database_rebuild_m
 - `docs/index.html` - Production version (copy of v3)
 
 **Database:**
-- `database/schema_new.sql` - New PostgreSQL schema
-- `database/schema_new_mysql.sql` - New MySQL schema
-- `database/migrations/003_complete_database_rebuild.sql` - PostgreSQL migration
-- `database/migrations/003_complete_database_rebuild_mysql.sql` - MySQL migration
+- `database/schema.sql` - PostgreSQL schema (3 tables)
+- `database/schema_mysql.sql` - MySQL schema (3 tables)
+- `database/migrations/001_initial_schema.sql` - PostgreSQL migration (clean rebuild)
+- `database/migrations/001_initial_schema_mysql.sql` - MySQL migration (clean rebuild)
 - `database/README_NEW_SCHEMA.md` - Comprehensive documentation
 
 **Documentation:**
